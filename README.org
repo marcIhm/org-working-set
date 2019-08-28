@@ -19,26 +19,26 @@
 
 *** Purpose
 
-    Maintain a small and volatile subset of your org-nodes to visit with ease.
+    Maintain a small and changing subset of your org-nodes to visit with ease.
     
-    The working-set is a small number of nodes, among which you can
-    switch rapidly; it is expected to change on a daily or even hourly
-    basis.  E.g. if during a day you work on three projects in short
-    intervals and have two meetings, you might add those five nodes to
-    your working set one after another and switch between them as
-    needed.
+    The working-set is a small set of nodes, among which you can switch
+    rapidly; it is expected to change on a daily or even hourly basis.  Put
+    nodes into your working set in order to return easily after any
+    interruption.
     
-    Please note, that org-working-set uses org-id throughout and
-    therefore adds an id-property to all nodes in the working-set.
+    Please note, that org-working-set adds an id-property to all nodes in
+    the working-set.
+    
+    The list of ids from the nodes of your working-set is stored within the
+    property-drawer of a distinguished node specified via
+    `org-working-set-id'; this can be any node you choose and is itself not
+    part of the working-set.
 
 *** Setup
 
     - org-working-set can be installed with package.el
-    - Invoke `org-working-set'; on first run it will ask for a
-      node, where it may save the working-set.
-    
-    - Optionally invoke `M-x org-customize', group 'Org Working-set',
-      to tune its settings.
+    - Invoke `M-x org-customize', group 'Org Working-set', and
+      set `org-working-set-id'.
 
 ** Files
 
