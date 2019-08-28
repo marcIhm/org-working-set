@@ -1,5 +1,6 @@
 elisp_source: org-working-set.el
 package_name: org-working-set
+copy_changelog: false
 valid_keys:
   - Purpose
   - Setup

@@ -6,7 +6,7 @@
 
   Read below for a description.
 
-  The current version is 0.0.1
+  The current version is 0.0.1.
 
 ** Table of Contents
 
@@ -21,8 +21,24 @@
 
     Maintain a small and volatile subset of your org-nodes to visit with ease.
     
+    The working-set is a small number of nodes, among which you can
+    switch rapidly; it is expected to change on a daily or even hourly
+    basis.  E.g. if during a day you work on three projects in short
+    intervals and have two meetings, you might add those five nodes to
+    your working set one after another and switch between them as
+    needed.
+    
+    Please note, that org-working-set uses org-id throughout and
+    therefore adds an id-property to all nodes in the working-set.
+
 *** Setup
 
+    - org-working-set can be installed with package.el
+    - Invoke `org-working-set'; on first run it will ask for a
+      node, where it may save the working-set.
+    
+    - Optionally invoke `M-x org-customize', group 'Org Working-set',
+      to tune its settings.
 
 ** Files
 
@@ -63,4 +79,12 @@
     - git tag -a -m x.y.z x.y.z ; git push ; git push --tags
 
 ** Latest Change Log
+
+   See ChangeLog.org for older notes.
+
+*** 0.0
+
+    - Moved functions for working set into its own file
+    - Show breadcrumbs in working-set-menu
+  
 

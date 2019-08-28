@@ -87,7 +87,8 @@ task :copy_info_pieces do
   nname = fname + ".new"
   puts "\n\n\e[33mPut info pieces into #{nname}:\e[0m"
   seen = Hash.new
-  [:version, :purpose, :change_log].each {|piece| seen[piece] = false}
+  seen[:version] = seen[:purpose] = false
+  seen[:changelog] = false if cnf['copy_changelog']
   File.open(nname,'w') do |nfile| 
     File.open(fname) do |file|
       while line = file.gets

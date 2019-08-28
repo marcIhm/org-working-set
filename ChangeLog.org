@@ -1,0 +1,6 @@
+* 0.0 until 2019-08-28 We
+
+  - Moved functions for working set into its own file
+  - Show breadcrumbs in working-set-menu
+
+

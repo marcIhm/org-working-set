@@ -107,15 +107,20 @@
   ;; be overwritten with Commentary-section from beginning of this file.
   ;; Editing after version number is fine.
   ;;
-  "Central interactive function to manage a working-set of nodes.
+  ;; For Rake: Insert purpose here
+  "Maintain a small and volatile subset of your org-nodes to visit with ease.
 
-The working-set is a small number of nodes, among whom you switch
-rapidly; it is expected to change on a daily or even hourly
-basis.  E.g. if, during a day, you work on three projects in
-short intervals and have two meetings, you might add five nodes
-to your working set one after another and switch between them.
+The working-set is a small number of nodes, among which you can
+switch rapidly; it is expected to change on a daily or even hourly
+basis.  E.g. if during a day you work on three projects in short
+intervals and have two meetings, you might add those five nodes to
+your working set one after another and switch between them as
+needed.
 
-This is version 0.99 of org-working-set.el.
+Please note, that org-working-set uses org-id throughout and
+therefore adds an id-property to all nodes in the working-set.
+
+This is version 0.0.1 of org-working-set.el.
 
 The subcommands allow to:
 - Modify the list of nodes (e.g. add new nodes)
