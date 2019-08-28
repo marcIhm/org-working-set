@@ -64,6 +64,9 @@
 
 ;;; Code:
 
+;; Version of this package
+(defvar org-working-set-version "0.0.1" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+
 (defvar oidx--ws-ids nil "Ids of working-set nodes (if any).")
 (defvar oidx--ws-ids-do-not-clock nil "Subset of `oidx--ws-ids', that are not clocked.")
 (defvar oidx--ws-ids-saved nil "Backup for ‘oidx--ws-ids’.")
