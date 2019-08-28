@@ -1,0 +1,66 @@
+* org-working-set
+
+  Manage a working-set of org-nodes
+  
+  org-working-set is a package for org-mode within emacs.
+
+  Read below for a description.
+
+  The current version is 0.0.1
+
+** Table of Contents
+
+   - [[#about-this-package][About this Package]]
+   - [[#files][Files]]
+   - [[#releasing-a-new-version][Releasing a new version]]
+   - [[#latest-change-log][Latest Change Log]]
+
+** About this Package
+
+*** Purpose
+
+    Maintain a small and volatile subset of your org-nodes to visit with ease.
+    
+*** Setup
+
+
+** Files
+
+*** Implementation
+
+    - org-working-set.el :: The complete lisp source
+
+*** Building
+
+    - Rakefile :: Helpful Ruby-Tasks for building
+
+*** Tests
+    
+    In subdir tests.
+
+    - oorg-ws.el :: ert-tests for org-working-set
+    - test.bat :: Windows command file to start a specifically prepared emacs for the tests
+    - test-init.el :: Customizations for the tests
+
+** Releasing a new version
+
+*** Testing and checking
+
+    - ert
+    - (byte-compile-file "org-working-set.el")
+    - elint-current-buffer
+    - checkdoc
+    - package-lint-current-buffer ;; ignore messages about oidx-prefix
+
+*** Preparing
+
+    - Update Version number in org-working-set.el
+    - Update Change Log in org-working-set.el
+    - Check and Update Commentary in org-working-set.el
+    - Run rake to copy those pieces of information into 
+      README.org and ChangeLog.org
+    - git add/commit as appropriate 
+    - git tag -a -m x.y.z x.y.z ; git push ; git push --tags
+
+** Latest Change Log
+
