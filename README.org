@@ -72,7 +72,7 @@
 
     - Update Version number in org-working-set.el
     - Update Change Log in org-working-set.el
-    - Check and Update Commentary in org-working-set.el
+    - Check and update Commentary in org-working-set.el
     - Run rake to copy those pieces of information into 
       README.org and ChangeLog.org
     - git add/commit as appropriate 
