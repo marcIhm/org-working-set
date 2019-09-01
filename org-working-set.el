@@ -89,7 +89,7 @@
   :group 'org)
 
 (defcustom org-working-set-id nil
-  "Id of the Org-mode node, which contains the index table."
+  "Id of the Org-mode node, which contains the index table. This can be set to the id of any node you like; only its property drawer will be used. "
   :type 'string
   :group 'org-working-set)
 
@@ -140,6 +140,8 @@ The subcommands allow to:
 Optional argument SILENT does not issue final message."
   (interactive)
 
+  (unless org-working-set-id
+    (error "Variable org-working-set-id is not set."))
   (unless org-ws--ids
     (let ((bp (org-ws--id-bp)))
       (with-current-buffer (car bp)
@@ -664,6 +666,178 @@ Optional argument ID gives the node to delete."
                     (marker-position marker)))
     (move-marker marker nil)
     ret))
+
+
+(defun org-ws--set-id-assistant ()
+  "Assist the used in choosing a node where the list of working-set nodes can be stored."
+  (let ((org-ws--help-buffer-name "*org working-set help*")))
+  (with-current-buffer-window
+   org-ws--help-buffer-name nil nil
+   (erase-buffer)
+   (org-mode)
+   (insert "The required variable org-working-set-id has not been set. It should contain the id of a node, where org-working-set stores its runtime information within two special propertie; the rest of the node will not be touched.")
+   (princ (or prompt "Short help; shortcuts in []; capital letter acts like C-u.\n"))
+   (princ (or choices (oidx--get-short-help-text))))
+  (with-current-buffer oidx--short-help-buffer-name
+    (let ((inhibit-read-only t))
+      (setq mode-line-format nil)
+      (setq cursor-type nil)
+      (fit-window-to-buffer (get-buffer-window))
+      (setq window-size-fixed 'height)
+      (goto-char (point-min))
+      (end-of-line)))
+
+  (let (buffer
+        title
+        firstref
+        id)
+    
+    (setq title (read-from-minibuffer "Please enter the title of the index node (leave empty for default 'index'): "))
+    (if (string= title "") (setq title "index"))
+    
+    (while (progn
+             (setq firstref (read-from-minibuffer "Please enter your first reference-number. This is an integer number preceeded by some and optionally followed by some non-numeric chars; e.g. 'R1', '-1-' or '#1#' (and your initial number does not need to be '1'). The format of your reference-numbers only needs to make sense for yourself, so that you can spot it easily in your texts or write it on a piece of paper; it should however not already appear frequently within your existing notes, to avoid too many false hits when searching.\n\nPlease choose (leave empty for default 'R1'): "))
+             (if (string= firstref "") (setq firstref "R1"))
+             (let (desc)
+               (when (string-match "[[:blank:]]" firstref)
+                 (setq desc "Contains whitespace"))
+               (when (string-match "[[:cntrl:]]" firstref)
+                 (setq desc "Contains control characters"))
+               (unless (string-match "^[^0-9]+[0-9]+[^0-9]*$" firstref)
+                 ;; firstref not okay, report details
+                 (setq desc
+                       (cond ((string= firstref "") "is empty")
+                             ((not (string-match "^[^0-9]+" firstref)) "starts with a digit")
+                             ((not (string-match "^[^0-9]+[0-9]+" firstref)) "does not contain a number")
+                             ((not (string-match "^[^0-9]+[0-9]+[^0-9]*$" firstref)) "contains more than one sequence of digits"))))
+               (if desc
+                   (progn
+                     (read-from-minibuffer (format "Your input '%s' does not meet the requirements because it %s.\nPlease hit RET and try again: " firstref desc))
+                     t)
+                 nil))))
+
+    (with-current-buffer buffer
+      (goto-char (point-max))
+      (insert (format "\n* %s %s\n" firstref title))
+      (org-entry-put (point) "max-ref" firstref)
+      (unless oidx--recording-screencast
+	(if temporary
+            (insert "
+  Below you find your temporary index table, which WILL NOT LAST LONGER
+  THAN YOUR CURRENT EMACS SESSION; please use it only for evaluation.
+")
+          (insert "
+  Below you find your initial index table, which will grow over time.
+"))
+	(insert "  You may start using it by adding some lines. Just
+  move to another heading within org, invoke `org-index' and
+  choose the command 'add'.  After adding a few nodes, try the
+  command 'occur' to search among them.
+
+  To gain further insight you may invoke the subcommand 'help', or
+  (with the same content) read the help of `org-index'.
+
+  Invoke `org-customize' to tweak the behaviour of org-index,
+  see the group org-index. It might be useful to set the global
+  key `org-index-key'.
+
+  This node needs not be a top level node; its name is completely
+  at your choice; it is found through its ID only.
+
+  You may change the order of columns in this table; if you do
+  so, please consider adjusting `org-index-occur-columns'.
+  Additional custom columns can be added, if they start with
+  a dot.
+")
+	(unless temporary
+          (insert "
+  Remark: These lines of explanation can be removed at any time.
+")))
+
+      (setq id (org-id-get-create))
+      (insert (format "
+
+  | ref | category | keywords | tags | count | level | last-accessed | created | id  | yank |
+  |     |          |          |      |       |       |               |         | <4> | <4>  |
+  |-----+----------+----------+------+-------+-------+---------------+---------+-----+------|
+  | %s  |          | %s       |      |       |       |               | %s      | %s  |      |
+
+"
+                      firstref
+                      title
+                      (with-temp-buffer (org-insert-time-stamp nil nil t))
+                      id))
+
+      ;; make sure, that node can be found
+      (org-id-add-location id (buffer-file-name))
+      (setq buffer-save-without-query t)
+      (basic-save-buffer)
+
+      (while (not (org-match-line org-table-line-regexp)) (forward-line -1))
+      (unless buffer-read-only (org-table-align))
+      (while (not (org-at-heading-p)) (forward-line -1))
+
+      ;; read back some info about new index
+      (let ((org-index-id id))
+	(oidx--verify-id))
+
+      ;; remember at least for this session
+      (setq org-index-id id)
+
+      ;; present results to user
+      (if temporary
+          (progn
+            ;; Present existing and temporary index together
+            (when compare
+              (pop-to-buffer-same-window oidx--buffer)
+              (goto-char oidx--point)
+              (oidx--unfold-buffer)
+              (delete-other-windows)
+              (select-window (split-window-vertically)))
+            ;; show new index
+            (pop-to-buffer-same-window buffer)
+            (org-id-goto id)
+            (oidx--unfold-buffer)
+            (if compare
+                (progn
+                  (message "Please compare your existing index (upper window) and a temporary new one (lower window) to fix your index")
+                  (throw 'new-index nil))
+              (message "This is your new temporary index, use command add to populate, occur to search.")))
+        (progn
+          ;; Show the new index
+          (pop-to-buffer-same-window buffer)
+          (delete-other-windows)
+          (org-id-goto id)
+          (oidx--unfold-buffer)
+          (if (y-or-n-p "This is your new index table.  It is already set for this Emacs session, so you may try it out.  Do you want to save it's id to make it available in future Emacs sessions too ? ")
+              (progn
+                (customize-save-variable 'org-index-id id)
+                (message "Saved org-index-id '%s' to %s." id (or custom-file user-init-file)))
+            (let (sq)
+              (setq sq (format "(setq org-index-id \"%s\")" id))
+              (kill-new sq)
+              (message "Did not make the id of this new index permanent; you may want to put\n\n   %s\n\ninto your own initialization; it is copied already, just yank it." sq)))
+
+          (when (not org-index-key)
+            (if (y-or-n-p "The central function `org-index' can be bound to a global key.  Do you want to make such a binding for now ? ")
+	        (let ((prompt (concat "Please type your desired key sequence. For example, with the user-prefix key C-c, these keys are available: " (mapconcat 'char-to-string (remove nil (mapcar (lambda (c) (if (key-binding (kbd (format "C-c %c" c))) nil c)) (number-sequence ?a ?z))) ",") ". But of course, you may choose any free key-sequence you like (C-g to cancel): "))
+		      (preprompt "")
+		      key)
+	          (while (progn
+		           (setq key (read-key-sequence (concat preprompt prompt)))
+		           (setq preprompt (format "Key '%s' is already taken; please choose another one. " (kbd key)))
+		           (and (key-binding key)
+			        (not (string= (kbd key) (kbd "^g"))))))
+	          (if (string= (kbd key) (kbd "^g"))
+                      (message "Aborted")
+		    (global-set-key key 'org-index)
+		    (let ((saved ""))
+		      (when (y-or-n-p "Do you want to save this for future Emacs sessions ? ")
+		        (customize-save-variable 'org-index-key key)
+		        (setq saved "and saved "))
+		      (message "Set %sorg-index-key '%s' to %s." saved (kbd key) (or custom-file user-init-file)))))
+	      (message "Did not set org-index-key; however this can be done any time with `org-customize'.")))
+          (throw 'new-index nil))))))
 
 
 (provide 'org-working-set)
