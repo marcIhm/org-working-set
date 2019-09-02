@@ -141,7 +141,8 @@ Optional argument SILENT does not issue final message."
   (interactive)
 
   (unless org-working-set-id
-    (error "Variable org-working-set-id is not set."))
+    (org-ws--set-id-assistant))
+  
   (unless org-ws--ids
     (let ((bp (org-ws--id-bp)))
       (with-current-buffer (car bp)
@@ -672,28 +673,37 @@ Optional argument ID gives the node to delete."
   "Assist the used in choosing a node where the list of working-set nodes can be stored."
   (let ((assistant-buffer-name "*org working-set assistant*")
         (window-config (current-window-configuration))
-        current-heading
+        (current-heading (ignore-errors (org-get-heading)))
         use-current-node)
-    (setq current-heading (ignore-errors (org-get-heading)))
 
-    (pop-to-buffer assistant-buffer-name)
+    (pop-to-buffer assistant-buffer-name '((display-buffer-at-bottom)) nil)
     (with-current-buffer assistant-buffer-name
       (erase-buffer)
       (org-mode)
-      (insert "The required variable `org-working-set-id' has not been set. It should contain the id of a node, where org-working-set will store its runtime information within two special properties. The rest of the node will not be touched.")
-      (insert "There are three ways to set `org-working-set-id': \n- Choose a node and copy the value of its ID-property; use the customize-interface to set `org-working-set-id' to the chosen id.")
-      (insert "- As above, but edit your .emacs and insert a setq-clause.\n")
-      (insert "- Use the ID of the node the cursor is currently positioned in.")
-      (insert "If you choose the first or second way, you should answer 'no' to the question below and go ahead yourself.")
-      (insert (format "However, this assistant may help you with the third way by setting `org-working-set-id' to the value of the ID you are currently in (which is '%s')," current-heading))
-      (insert (format "If you are not already within the correct node, you may answer 'no' to the question below, navigate to the right node and invoke `%s' again." this-command))
+      (mapc (lambda (x) (insert x) (org-fill-paragraph) (insert "\n"))
+            (list
+             "\nThe required variable `org-working-set-id' has not been set. It should contain the id of a node, where org-working-set will store its runtime information within two special properties. The rest of the node will not be touched."
+             "\nThere are three ways to set `org-working-set-id':"
+             "- Choose a node and copy the value of its ID-property; use the customize-interface to set `org-working-set-id' to the chosen id."
+             "- As above, but edit your .emacs and insert a setq-clause."
+             (format "- Use the ID of the node the cursor is currently positioned in (which is '%s')." current-heading)
+             "\nIf you choose the first or second way, you should answer 'no' to the question below and go ahead yourself."
+             (format "However, this assistant may help you with the third way by setting `org-working-set-id' to the value of the ID you are currently in (which is '%s')," current-heading)
+             (format "If you are not already within the correct node, you may answer 'no' to the question below, navigate to the right node and invoke `%s' again." this-command)))
       (setq mode-line-format nil)
+      (setq buffer-read-only t)
       (setq cursor-type nil)
-      (fit-window-to-buffer (get-buffer-window))
-      (setq window-size-fixed 'height))
-    (setq use-current-node (yes-or-no-p "Do you want to use the id of the current node "))
+      (fit-window-to-buffer)
+      (enlarge-window 1)
+      (goto-char (point-min))
+      (recenter 0)
+      (setq window-size-fixed 'height)
 
-    (set-window-config window-config)
+      (unwind-protect
+          (setq use-current-node (yes-or-no-p "Do you want to use the id of the current node ? "))
+        (kill-buffer-and-window)
+        (set-window-configuration window-config)))
+
     (if use-current-node
         (let (id (org-id-get-create))
           (customize-save-variable 'org-working-set-id id)
