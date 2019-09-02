@@ -688,8 +688,8 @@ Optional argument ID gives the node to delete."
              "- As above, but edit your .emacs and insert a setq-clause."
              (format "- Use the ID of the node the cursor is currently positioned in (which is '%s')." current-heading)
              "\nIf you choose the first or second way, you should answer 'no' to the question below and go ahead yourself."
-             (format "However, this assistant may help you with the third way by setting `org-working-set-id' to the value of the ID you are currently in (which is '%s')," current-heading)
-             (format "If you are not already within the correct node, you may answer 'no' to the question below, navigate to the right node and invoke `%s' again." this-command)))
+             "\nIf you choose the third way, you should answer 'yes'."
+             (format "\nHowever, if you are not already within the right node, you may answer 'no' to the question below, navigate to the right node and invoke `%s' again." this-command)))
       (setq mode-line-format nil)
       (setq buffer-read-only t)
       (setq cursor-type nil)
@@ -705,7 +705,7 @@ Optional argument ID gives the node to delete."
         (set-window-configuration window-config)))
 
     (if use-current-node
-        (let (id (org-id-get-create))
+        (let ((id (org-id-get-create)))
           (customize-save-variable 'org-working-set-id id)
           (message "Using id of current node to store `org-working-set-id'")
           (sit-for 1))
