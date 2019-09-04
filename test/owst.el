@@ -54,6 +54,12 @@
 ;; All tests
 ;;
 
+(ert-deftest owst-test-aaa-test-test-setup ()
+  (owst-with-test-setup
+    (owst-do "a")
+    (message "Testing test setup")))
+
+
 (ert-deftest owst-test-clock-into-working-set ()
   (owst-with-test-setup
     (unwind-protect
@@ -197,42 +203,28 @@
 
 
 (defun owst-do (keys &optional prefix)
-  (execute-kbd-macro (kbd (concat prefix (if prefix " " "") "M-x o i d x - - do <return> " keys))))
+  (execute-kbd-macro (kbd (concat prefix (if prefix " " "") "M-x o r g - w o r k i n g - s e t <return> " keys))))
 
 
 (defun owst-setup-test ()
   (interactive)
-  (if oidx--sort-timer
-      (cancel-timer oidx--sort-timer))
-  (if (get-buffer "*org-index-occur*") (kill-buffer "*org-index-occur*"))
-  (setq oidx--last-sort-assumed 'mixed)
-  (setq oidx--maxrefnum nil)
-  (setq oidx--occur-assert-result t)
   ;; remove any left over buffers
   (owst-remove-work-buffers)
   ;; create them new
   (switch-to-buffer owst-work-buffer)
-  (owst-create-work-buffer)
-  (owst-prepare-test-index)
-  (setq oidx--last-sort org-index-sort-by)
-  (setq oidx--ws-ids nil)
-  (setq oidx--ws-ids-do-not-track nil)
-  (switch-to-buffer owst-work-buffer)
   (basic-save-buffer)
-  (org-agenda-file-to-front owst-ert-work-file)
+  (org-agenda-file-to-front oidxt-ert-work-file)
   (org-cycle '(16))
+  (owst-create-work-buffer)
+  (switch-to-buffer owst-work-buffer)
   (delete-other-windows)
-  (end-of-buffer)
-  (forward-line -2))
+  (end-of-buffer))
 
 
 (defun owst-teardown-test ()
   (interactive)
-  (if (not owst-keep-test-state) (owst-restore-saved-state))
   (with-current-buffer owst-work-buffer (set-buffer-modified-p nil))
-  (with-current-buffer owst-index-buffer (set-buffer-modified-p nil))
-  (org-remove-file owst-ert-work-file)
-  (setq oidx--head nil))
+  (org-remove-file owst-ert-work-file))
 
 
 (defun owst-remove-work-buffers ()
@@ -278,6 +270,7 @@
   :END:
 ")
     (org-mode)
+    (setq org-working-set-id "588bda71-38b7-41a9-90f0-cc9fb39991fa")
     owst-work-buffer))
 
 
