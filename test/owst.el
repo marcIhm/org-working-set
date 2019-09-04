@@ -56,7 +56,6 @@
 
 (ert-deftest owst-test-aaa-test-test-setup ()
   (owst-with-test-setup
-    (owst-do "a")
     (message "Testing test setup")))
 
 
@@ -211,12 +210,13 @@
   ;; remove any left over buffers
   (owst-remove-work-buffers)
   ;; create them new
+  (owst-create-work-buffer)
   (switch-to-buffer owst-work-buffer)
   (basic-save-buffer)
   (org-agenda-file-to-front oidxt-ert-work-file)
-  (org-cycle '(16))
   (owst-create-work-buffer)
   (switch-to-buffer owst-work-buffer)
+  (org-cycle '(64))
   (delete-other-windows)
   (end-of-buffer))
 
