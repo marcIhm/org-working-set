@@ -66,36 +66,31 @@
 	  (let ((org-working-set-clock-into-working-set nil))
 	    (should (not (org-clock-is-active)))
 	    (owst-goto "eins")
-	    (owst-do "w o r k i n g - s e t <return> s")
-	    (sleep-for 2)
+	    (owst-do "s <down>")
+	    (sleep-for 1)
 	    (should (not (org-clock-is-active)))
 	    
-	    (owst-do "w o r k i n g - s e t <return> w")
-            (execute-kbd-macro (kbd "<S-return>"))
-	    (sleep-for 2)
+	    (owst-do "s <down>")
+	    (owst-do "w")
+            (execute-kbd-macro (kbd "<S-return> <down>"))
+	    (sleep-for 1)
 	    (should (not (org-clock-is-active)))
 	    
-	    (setq org-index-clock-into-working-set t)
+	    (setq org-working-set-clock-into-working-set t)
 	    (should (not (org-clock-is-active)))
-	    (owst-do "o c c u r <return> z w e i <down> <return>")
-	    (owst-do "w o r k i n g - s e t <return> s")
-	    (sleep-for 2)
+	    (owst-goto "zwei")
+	    (owst-do "s <down>")
+	    (sleep-for 1)
 	    (should (org-clock-is-active))))
       (org-clock-out))))
 
 
-(ert-deftest owst-test-working-set ()
-  (owst-with-test-setup
-    (owst-do "o c c u r <return> z w e i <down> <return>")
-    (owst-do "w o r k i n g - s e t <return> s")
-    (beginning-of-buffer)
-    (owst-do "w o r k i n g - s e t <return>" "C-u")
-    (should (looking-at ".* --8--"))))
-
-
 (ert-deftest owst-test-assistant ()
   (owst-with-test-setup
-    (should nil)))
+    (setq org-working-set-id nil)
+    (owst-do "y e s <return> a")
+    (should org-working-set-id)
+    (should (string= org-working-set-id (car org-ws--ids)))))
 
 
 (ert-deftest owst-test-working-set-do-not-clock ()
@@ -165,26 +160,25 @@
 
 (ert-deftest owst-test-double-working-set ()
   (owst-with-test-setup
-    (owst-do "o c c u r <return> z w e i <down> <return>")
-    (owst-do "w o r k i n g - s e t <return> s")
-    (owst-do "o c c u r <return> e i n s <down> <return>")
-    (owst-do "w o r k i n g - s e t <return> a")
-    (owst-do "w o r k i n g - s e t <return> SPC SPC")
-    (should (looking-at ".* --8--"))
-    (owst-do "w o r k i n g - s e t <return> SPC")
-    (should (looking-at ".* --8--"))
-    (owst-do "w o r k i n g - s e t <return> SPC SPC")
-    (should (looking-at ".* --13--"))))
+    (owst-goto "zwei")
+    (owst-do "s")
+    (owst-goto "eins")
+    (owst-do "a")
+    (owst-do "SPC SPC")
+    (should (looking-at ".* zwei"))
+    (owst-do "SPC")
+    (should (looking-at ".* zwei"))
+    (owst-do "SPC SPC")
+    (should (looking-at ".* eins"))))
 
 
 (ert-deftest owst-test-nested-working-set ()
   (owst-with-test-setup
-    (owst-do "o c c u r <return> v i e r <down> <return>")
-    (owst-do "w o r k i n g - s e t <return> s")
-    (search-forward "neun")
-    (org-reveal)
-    (owst-do "w o r k i n g - s e t <return> a")
-    (should (= (length oidx--ws-ids) 1))))
+    (owst-goto "drei")
+    (owst-do "s")
+    (owst-goto "vier")
+    (owst-do "a")
+    (should (= (length org-ws--ids) 1))))
 
 
 ;;
@@ -223,7 +217,9 @@
 
 (defun owst-teardown-test ()
   (interactive)
-  (with-current-buffer owst-work-buffer (set-buffer-modified-p nil))
+  (with-current-buffer owst-work-buffer
+    (set-buffer-modified-p nil)
+    (basic-save-buffer))
   (org-remove-file owst-ert-work-file))
 
 
@@ -275,13 +271,13 @@
   :PROPERTIES:
   :ID:       b77473f3-dba0-4b4f-9db7-3ba095d12de4
   :END:
-* vier
-  :PROPERTIES:
-  :ID:       2a3d87d0-9ad0-416b-aa22-dea96fede8b7
-  :END:
+** vier
+   :PROPERTIES:
+   :ID:       2a3d87d0-9ad0-416b-aa22-dea96fede8b7
+   :END:
 ")
     (org-mode)
-    (setq org-working-set-id "588bda71-38b7-41a9-90f0-cc9fb39991fa")
+    (setq org-working-set-id "53e15dce-6f28-4674-bd65-e63b516d97ac")
     owst-work-buffer))
 
 

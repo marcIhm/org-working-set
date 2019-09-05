@@ -2,6 +2,7 @@
 (add-to-list 'load-path "c:/org-working-set")
 (add-to-list 'load-path "c:/org-working-set/test")
 
+(add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/") t)
 (setq package-user-dir "c:/org-working-set/elpa")
 (package-initialize)
 
