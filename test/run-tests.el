@@ -1,14 +1,13 @@
 (setq load-prefer-newer t)
 (add-to-list 'load-path "c:/org-mode/lisp")
 (add-to-list 'load-path "c:/org/custom")
-(add-to-list 'load-path "c:/org-index")
-(add-to-list 'load-path "c:/org-index/test")
+(add-to-list 'load-path "c:/org-working-set")
+(add-to-list 'load-path "c:/org-working-set/test")
 
 (setq package-user-dir "c:/org/custom/elpa")
 (package-initialize)
 
 (require 'org)
-(require 'org-index)
 (require 'owst)
 (require 'paredit)
 (autoload 'paredit-mode "paredit" "Minor mode for pseudo-structurally editing Lisp code." t)

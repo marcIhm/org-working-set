@@ -63,9 +63,9 @@
   (owst-with-test-setup
     (unwind-protect
 	(progn
-	  (let ((oidx--after-ws-delay 1) (org-index-clock-into-working-set nil))
+	  (let ((org-working-set-clock-into-working-set nil))
 	    (should (not (org-clock-is-active)))
-	    (owst-do "o c c u r <return> z w e i <down> <return>")
+	    (owst-goto "eins")
 	    (owst-do "w o r k i n g - s e t <return> s")
 	    (sleep-for 2)
 	    (should (not (org-clock-is-active)))
@@ -213,7 +213,7 @@
   (owst-create-work-buffer)
   (switch-to-buffer owst-work-buffer)
   (basic-save-buffer)
-  (org-agenda-file-to-front oidxt-ert-work-file)
+  (org-agenda-file-to-front owst-ert-work-file)
   (owst-create-work-buffer)
   (switch-to-buffer owst-work-buffer)
   (org-cycle '(64))
@@ -237,10 +237,21 @@
   (setq owst-work-buffer nil))
 
 
+(defun owst-goto (name)
+  (org-id-goto (cdr (assoc name owst-names-ids))))
 
 ;;
 ;; Test data
 ;;
+
+
+(defvar owst-names-ids
+  (list (cons "eins" "588bda71-38b7-41a9-90f0-cc9fb39991fa")
+	(cons "zwei" "5a16c863-1f7e-4636-9c47-74e4d49f72df")
+	(cons "drei" "12ae411f-bdd4-4c92-9e24-75cf7858f586")
+	(cons "vier" "caac71f6-74fa-4b6a-b732-66c9ceb0c483"))
+  "Associating names of nodes with ids")
+
 
 (defun owst-create-work-buffer ()
   (unless owst-work-buffer
