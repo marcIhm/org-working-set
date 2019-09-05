@@ -1,10 +1,8 @@
 (setq load-prefer-newer t)
-(add-to-list 'load-path "c:/org-mode/lisp")
-(add-to-list 'load-path "c:/org/custom")
 (add-to-list 'load-path "c:/org-working-set")
 (add-to-list 'load-path "c:/org-working-set/test")
 
-(setq package-user-dir "c:/org/custom/elpa")
+(setq package-user-dir "c:/org-working-set/elpa")
 (package-initialize)
 
 (require 'org)
@@ -13,8 +11,7 @@
 (autoload 'paredit-mode "paredit" "Minor mode for pseudo-structurally editing Lisp code." t)
 (add-hook 'emacs-lisp-mode-hook (lambda () (paredit-mode +1)))
 
-(setq org-id-locations-file "~\\.emacs.d\\.org-id-locations-for-test")
-(setq custom-theme-directory "c:/org/custom/themes")
+(setq org-id-locations-file "c:/org-working-set/org-id-locations-for-test")
 
 (menu-bar-mode -1)
 (tool-bar-mode -1)

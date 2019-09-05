@@ -246,10 +246,10 @@
 
 
 (defvar owst-names-ids
-  (list (cons "eins" "588bda71-38b7-41a9-90f0-cc9fb39991fa")
-	(cons "zwei" "5a16c863-1f7e-4636-9c47-74e4d49f72df")
-	(cons "drei" "12ae411f-bdd4-4c92-9e24-75cf7858f586")
-	(cons "vier" "caac71f6-74fa-4b6a-b732-66c9ceb0c483"))
+  (list (cons "eins" "53e15dce-6f28-4674-bd65-e63b516d97ac")
+	(cons "zwei" "87512329-a204-47e5-b38c-1b22838b6f7d")
+	(cons "drei" "b77473f3-dba0-4b4f-9db7-3ba095d12de4")
+	(cons "vier" "2a3d87d0-9ad0-416b-aa22-dea96fede8b7"))
   "Associating names of nodes with ids")
 
 
@@ -265,19 +265,19 @@
     (insert "
 * eins
   :PROPERTIES:
-  :ID:       588bda71-38b7-41a9-90f0-cc9fb39991fa
+  :ID:       53e15dce-6f28-4674-bd65-e63b516d97ac
   :END:
 * zwei
   :PROPERTIES:
-  :ID:       5a16c863-1f7e-4636-9c47-74e4d49f72df
+  :ID:       87512329-a204-47e5-b38c-1b22838b6f7d
   :END:
 * drei
   :PROPERTIES:
-  :ID:       12ae411f-bdd4-4c92-9e24-75cf7858f586
+  :ID:       b77473f3-dba0-4b4f-9db7-3ba095d12de4
   :END:
 * vier
   :PROPERTIES:
-  :ID:       caac71f6-74fa-4b6a-b732-66c9ceb0c483
+  :ID:       2a3d87d0-9ad0-416b-aa22-dea96fede8b7
   :END:
 ")
     (org-mode)
