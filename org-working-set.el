@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 0.0.2
+;; Version: 1.0.0
 ;; Package-Requires: ((emacs "24.4"))
 
 ;; This file is not part of GNU Emacs.
@@ -55,10 +55,11 @@
 
 ;;; Change Log:
 
-;;   Version 0.0.2
+;;   Version 1.0.0
 ;;
 ;;   - Moved functions for working set into its own file
 ;;   - Show breadcrumbs in working-set-menu
+;;   - Prepare for melpa
 ;;
 ;;  See the package org-index for older news
 
@@ -80,7 +81,7 @@
 (defconst org-ws--menu-buffer-name "*working-set of org-nodes*" "Name of buffer with list of working-set nodes.")
 
 ;; Version of this package
-(defvar org-working-set-version "0.0.2" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-working-set-version "1.0.0" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 ;; customizable options
 (defgroup org-working-set nil
@@ -89,7 +90,7 @@
   :group 'org)
 
 (defcustom org-working-set-id nil
-  "Id of the Org-mode node, which contains the index table. This can be set to the id of any node you like; only its property drawer will be used. "
+  "Id of the Org-mode node, which contains the index table.  This can be set to the id of any node you like; only its property drawer will be used."
   :type 'string
   :group 'org-working-set)
 
@@ -130,7 +131,7 @@ property-drawer of a distinguished node specified via
 `org-working-set-id'; this can be any node you choose and is itself not
 part of the working-set.
 
-This is version 0.0.1 of org-working-set.el.
+This is version 1.0.0 of org-working-set.el.
 
 The subcommands allow to:
 - Modify the list of nodes (e.g. add new nodes)
@@ -295,7 +296,7 @@ Optional argument SILENT does not issue final message."
         (if org-ws--circle-win-config
             (set-window-configuration org-ws--circle-win-config))
         (message "Quit")
-        (org-ws--circle-finished-helper)))
+        (org-ws--circle-finished-helper nil)))
     
     (setq org-ws--cancel-wait-function
           (set-transient-map
@@ -322,7 +323,7 @@ Optional argument SILENT does not issue final message."
 
 
 (defun org-ws--circle-finished-helper (bail-out)
-  "Common steps on finishing of working set circle. Argument bail-out, if t, avoids clocking in."
+  "Common steps on finishing of working set circle.  Argument BAIL-OUT, if t, avoids clocking in."
   (if org-ws--overlay (delete-overlay org-ws--overlay))
   (setq org-ws--overlay nil)
   (setq org-ws--circle-bail-out bail-out)
@@ -331,7 +332,8 @@ Optional argument SILENT does not issue final message."
 
 (defun org-ws--circle-continue (&optional stay back)
   "Continue with working set circle after start.
-Optional argument STAY prevents changing location."
+Optional argument STAY prevents changing location.
+Optional argument BACK"
   (let (last-id following-id previous-id target-id parent-ids head)
 
     ;; compute target
@@ -341,7 +343,7 @@ Optional argument STAY prevents changing location."
                                                   (append org-ws--ids org-ws--ids)))
                                 org-ws--ids)))
     (if back
-        (setq previous-id (car (or (cdr-safe (member last-id
+        (setq previous-reverses direction.id (car (or (cdr-safe (member last-id
                                                      (reverse (append org-ws--ids org-ws--ids))))
                                    org-ws--ids))))
     (setq target-id (if stay last-id (if back previous-id following-id)))
@@ -709,7 +711,7 @@ Optional argument ID gives the node to delete."
           (customize-save-variable 'org-working-set-id id)
           (message "Using id of current node to store `org-working-set-id'")
           (sit-for 1))
-      (error "`org-working-set-id' not set."))))
+      (error "`org-working-set-id' not set"))))
 
 
 (provide 'org-working-set)
