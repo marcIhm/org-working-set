@@ -1,4 +1,4 @@
-* 1.0 until 2019-09-06 Fr
+* 1.0 until 2019-09-08 Su
 
   - Moved functions for working set into its own file
   - Show breadcrumbs in working-set-menu

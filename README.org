@@ -6,11 +6,12 @@
 
   Read below for a description.
 
-  The current version is 1.0.0.
+  The current version is 1.0.1.
 
 ** Table of Contents
 
    - [[#about-this-package][About this Package]]
+   - [[#screenshot][Screenshot]]
    - [[#files][Files]]
    - [[#releasing-a-new-version][Releasing a new version]]
    - [[#latest-change-log][Latest Change Log]]
@@ -40,6 +41,13 @@
     - Invoke `M-x org-customize', group 'Org Working-set', and
       set `org-working-set-id'.
 
+** Screenshot
+
+   Normally you won't see much of this package, but if requested it shows s menu of 
+   all nodes within the working set (lower window).
+
+   [[images/screenshot1.png]]
+
 ** Files
 
 *** Implementation
@@ -54,9 +62,10 @@
     
     In subdir tests.
 
-    - oorg-ws.el :: ert-tests for org-working-set
-    - test.bat :: Windows command file to start a specifically prepared emacs for the tests
-    - test-init.el :: Customizations for the tests
+    - owst.el :: ert-tests for org-working-set
+    - run-tests.ps1 :: Windows command file to start an emacs, which
+                       is specifically prepared for the tests
+    - run-tests.el :: Customizations for the tests
 
 ** Releasing a new version
 
@@ -69,7 +78,7 @@
     - package-lint-current-buffer ;; ignore messages about org-ws--prefix
 
 *** Preparing
-
+    
     - Update Version number in org-working-set.el
     - Update Change Log in org-working-set.el
     - Check and update Commentary in org-working-set.el
