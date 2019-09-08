@@ -45,6 +45,9 @@
 ;;  `org-working-set-id'; this can be any node you choose and is itself not
 ;;  part of the working-set.
 ;;
+;;  Remark: Depending on your needs you might also find these packages
+;;  interesting for providing somewhat similar functionality: org-now and
+;;  org-mru-clock.
 ;;
 ;; Setup:
 ;;
@@ -130,6 +133,10 @@ The list of ids from the nodes of your working-set is stored within the
 property-drawer of a distinguished node specified via
 `org-working-set-id'; this can be any node you choose and is itself not
 part of the working-set.
+
+Remark: Depending on your needs you might also find these packages
+interesting for providing somewhat similar functionality: org-now and
+org-mru-clock.
 
 This is version 1.0.2 of org-working-set.el.
 

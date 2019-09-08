@@ -34,6 +34,10 @@
     property-drawer of a distinguished node specified via
     `org-working-set-id'; this can be any node you choose and is itself not
     part of the working-set.
+    
+    Remark: Depending on your needs you might also find these packages
+    interesting for providing somewhat similar functionality: org-now and
+    org-mru-clock.
 
 *** Setup
 
@@ -43,7 +47,7 @@
 
 ** Screenshot
 
-   Normally you won't see much of this package, but if requested it shows s menu of 
+   Normally you won't see much of this package, but if requested it shows a menu of 
    all nodes within the working set (lower window).
 
    [[images/screenshot1.png]]
