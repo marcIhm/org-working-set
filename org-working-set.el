@@ -23,7 +23,7 @@
 ;; GNU General Public License for more details.
 ;;
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 ;;
 
 ;;; Commentary:
@@ -67,6 +67,8 @@
 ;;  See the package org-index for older news
 
 ;;; Code:
+
+(require 'org)
 
 (defvar org-working-set--ids nil "Ids of working-set nodes (if any).")
 (defvar org-working-set--ids-do-not-clock nil "Subset of `org-working-set--ids', that are not clocked.")
@@ -619,8 +621,8 @@ Optional argument UPCASE modifies the returned message."
       (setq org-working-set--ids-do-not-clock (cl-intersection org-working-set--ids-do-not-clock org-working-set--ids))
       (setq org-working-set--ids (cl-remove-duplicates org-working-set--ids :test (lambda (x y) (string= x y))))
       (setq org-working-set--ids-do-not-clock (cl-remove-duplicates org-working-set--ids-do-not-clock :test (lambda (x y) (string= x y))))
-      (org-entry-put (cdr bp) "working-set-nodes" (mapconcat 'identity org-working-set--ids " "))
-      (org-entry-put (cdr bp) "working-set-nodes-do-not-clock" (mapconcat 'identity org-working-set--ids-do-not-clock " ")))))
+      (org-entry-put (cdr bp) "working-set-nodes" (mapconcat #'identity org-working-set--ids " "))
+      (org-entry-put (cdr bp) "working-set-nodes-do-not-clock" (mapconcat #'identity org-working-set--ids-do-not-clock " ")))))
 
 
 (defun org-working-set--delete-from (&optional id)

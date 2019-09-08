@@ -90,16 +90,16 @@
     (setq org-working-set-id nil)
     (owst-do "y e s <return> a")
     (should org-working-set-id)
-    (should (string= org-working-set-id (car org-ws--ids)))))
+    (should (string= org-working-set-id (car org-working-set--ids)))))
 
 
 (ert-deftest owst-test-working-set-do-not-clock ()
   (owst-with-test-setup
     (should (not (org-clock-is-active)))
     (owst-goto "eins")
-    (should (not org-ws--ids-do-not-clock))
+    (should (not org-working-set--ids-do-not-clock))
     (owst-do "S")
-    (should org-ws--ids-do-not-clock)
+    (should org-working-set--ids-do-not-clock)
     (should (not (org-clock-is-active)))))
 
 
@@ -107,11 +107,11 @@
   (owst-with-test-setup
     (owst-goto "zwei")
     (owst-do "s")
-    (should (= (length org-ws--ids) 1))
+    (should (= (length org-working-set--ids) 1))
     (owst-do "d")
-    (should (= (length org-ws--ids) 0))
+    (should (= (length org-working-set--ids) 0))
     (owst-do "u")
-    (should (= (length org-ws--ids) 1))))
+    (should (= (length org-working-set--ids) 1))))
 
 
 (ert-deftest owst-test-working-set-bottom-head ()
@@ -143,9 +143,9 @@
     (owst-do "s")
     (owst-goto "eins")
     (owst-do "a")
-    (should (= (length org-ws--ids) 2))
+    (should (= (length org-working-set--ids) 2))
     (owst-do "m <down> d q")
-    (should (= (length org-ws--ids) 1))))
+    (should (= (length org-working-set--ids) 1))))
 
 
 (ert-deftest owst-test-working-set-menu-toggle-clocking ()
@@ -178,7 +178,7 @@
     (owst-do "s")
     (owst-goto "vier")
     (owst-do "a")
-    (should (= (length org-ws--ids) 1))))
+    (should (= (length org-working-set--ids) 1))))
 
 
 ;;
@@ -213,8 +213,8 @@
   (org-cycle '(64))
   (delete-other-windows)
   (end-of-buffer)
-  (setq org-ws--ids nil)
-  (setq org-ws--ids-do-not-clock nil))
+  (setq org-working-set--ids nil)
+  (setq org-working-set--ids-do-not-clock nil))
 
 
 (defun owst-teardown-test ()
