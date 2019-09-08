@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 1.0.0
+;; Version: 1.0.1
 ;; Package-Requires: ((emacs "24.4"))
 
 ;; This file is not part of GNU Emacs.
@@ -81,7 +81,7 @@
 (defconst org-ws--menu-buffer-name "*working-set of org-nodes*" "Name of buffer with list of working-set nodes.")
 
 ;; Version of this package
-(defvar org-working-set-version "1.0.0" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-working-set-version "1.0.1" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 ;; customizable options
 (defgroup org-working-set nil
@@ -131,7 +131,7 @@ property-drawer of a distinguished node specified via
 `org-working-set-id'; this can be any node you choose and is itself not
 part of the working-set.
 
-This is version 1.0.0 of org-working-set.el.
+This is version 1.0.1 of org-working-set.el.
 
 The subcommands allow to:
 - Modify the list of nodes (e.g. add new nodes)
@@ -343,7 +343,7 @@ Optional argument BACK"
                                                   (append org-ws--ids org-ws--ids)))
                                 org-ws--ids)))
     (if back
-        (setq previous-reverses direction.id (car (or (cdr-safe (member last-id
+        (setq previous-id (car (or (cdr-safe (member last-id
                                                      (reverse (append org-ws--ids org-ws--ids))))
                                    org-ws--ids))))
     (setq target-id (if stay last-id (if back previous-id following-id)))
