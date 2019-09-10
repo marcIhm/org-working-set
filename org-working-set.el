@@ -1,10 +1,10 @@
 ;;; org-working-set.el --- Manage a working-set of org-nodes  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2011-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2019 Free Software Foundation, Inc.
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 1.0.3
+;; Version: 1.0.4
 ;; Package-Requires: ((emacs "24.4"))
 
 ;; This file is not part of GNU Emacs.
@@ -93,7 +93,7 @@
 (defconst org-working-set--menu-buffer-name "*working-set of org-nodes*" "Name of buffer with list of working-set nodes.")
 
 ;; Version of this package
-(defvar org-working-set-version "1.0.3" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-working-set-version "1.0.4" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 ;; customizable options
 (defgroup org-working-set nil
@@ -135,6 +135,13 @@ rapidly; it is expected to change on a daily or even hourly basis.  Put
 nodes into your working set in order to return easily after any
 interruption.
 
+Once you have added nodes to your working set, there are two ways to
+traverse them (both are accessible through the central function
+`org-working-set'): cycling through your working set is the quickest
+way to return to the current node or go to others; alternatively,
+invoking the working set menu allows for better control but may require
+more keystrokes.
+
 Please note, that org-working-set adds an id-property to all nodes in
 the working-set.
 
@@ -147,7 +154,7 @@ Remark: Depending on your needs you might also find these packages
 interesting for providing somewhat similar functionality: org-now and
 org-mru-clock.
 
-This is version 1.0.3 of org-working-set.el.
+This is version 1.0.4 of org-working-set.el.
 
 The subcommands allow to:
 - Modify the list of nodes (e.g. add new nodes)
