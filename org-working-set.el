@@ -36,6 +36,13 @@
 ;;  rapidly; it is expected to change on a daily or even hourly basis.  Put
 ;;  nodes into your working set in order to return easily after any
 ;;  interruption.
+;;
+;;  Once you have added nodes to your working set, there are two ways to
+;;  traverse them (both are accessible through the central function
+;;  `org-working-set'): cycling through your working set is the quickest
+;;  way to return to the current node or go to others; alternatively,
+;;  invoking the working set menu allows for better control but may require
+;;  more keystrokes.
 ;;  
 ;;  Please note, that org-working-set adds an id-property to all nodes in
 ;;  the working-set.
@@ -52,8 +59,8 @@
 ;; Setup:
 ;;
 ;;  - org-working-set can be installed with package.el
-;;  - Invoke `M-x org-customize', group 'Org Working-set', and
-;;    set `org-working-set-id'.
+;;  - Invoke `org-working-set', it will explain and assist you to set the
+;;    customizable variable `org-working-set-id'
 ;;
 
 ;;; Change Log:
