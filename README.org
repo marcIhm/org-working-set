@@ -54,8 +54,8 @@
 
 ** Screenshot
 
-   Normally you won't see much of this package, but if requested it shows a menu of 
-   all nodes within the working set (lower window).
+   The screenshot shows a public sample-text about emacs/orgmode/gtd (upper window) 
+   and the working set menu with three nodes from this text (lower window).
 
    [[images/screenshot1.png]]
 
