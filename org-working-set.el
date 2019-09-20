@@ -530,11 +530,14 @@ Optional argument RESIZE adjusts window size."
       (make-local-variable 'line-move-visual)
       (setq line-move-visual nil)
       (setq buffer-read-only nil)
+      (cursor-intangible-mode)
       (erase-buffer)
       (insert (propertize (if org-working-set--short-help-wanted
                               (org-working-set--wrap "List of working-set nodes. Pressing <return> on a list element jumps to node in other window and deletes this window, <tab> does the same but keeps this window, <S-return> and <S-tab> do not clock do not clock, `h' and `b' jump to bottom of node unconditionally (with capital letter in other windows), `p' peeks into node from current line, `d' deletes node from working-set immediately, `u' undoes last delete, `q' aborts and deletes this buffer, `r' rebuilds its content, `c' or `~' toggles clocking. Markers on nodes are: `*' for last visited and `~' do not clock.")
                             "Press <return>,<S-return>,<tab>,<S-tab>,h,H,b,B,p,d,u,q,r,c,~,* or ? to toggle short help.")
-                          'face 'org-agenda-dimmed-todo-face))
+                          'face 'org-agenda-dimmed-todo-face
+                          'cursor-intangible t
+                          'front-sticky t))
       (insert "\n\n")
       (setq cursor-here (point))
       (if org-working-set--ids
