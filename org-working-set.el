@@ -527,7 +527,7 @@ Argument KEY has been pressed to trigger this function."
 Optional argument RESIZE adjusts window size."
   (let (cursor-here lb)
     (with-current-buffer (get-buffer-create org-working-set--menu-buffer-name)
-      (make-local-variable line-move-visual)
+      (make-local-variable 'line-move-visual)
       (setq line-move-visual nil)
       (setq buffer-read-only nil)
       (erase-buffer)
