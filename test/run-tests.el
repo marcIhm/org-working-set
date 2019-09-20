@@ -5,6 +5,9 @@
 (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/") t)
 (setq package-user-dir "c:/org-working-set/elpa")
 (package-initialize)
+(add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/") t)
+(add-to-list 'package-archives '("org" . "https://orgmode.org/elpa/") t)
+(setq url-proxy-services nil)
 
 (require 'org)
 (require 'owst)
