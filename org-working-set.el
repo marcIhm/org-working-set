@@ -527,6 +527,7 @@ Argument KEY has been pressed to trigger this function."
 Optional argument RESIZE adjusts window size."
   (let (cursor-here lb)
     (with-current-buffer (get-buffer-create org-working-set--menu-buffer-name)
+      (setq cursor-here (point))
       (make-local-variable 'line-move-visual)
       (setq line-move-visual nil)
       (setq buffer-read-only nil)
@@ -539,7 +540,6 @@ Optional argument RESIZE adjusts window size."
                           'cursor-intangible t
                           'front-sticky t))
       (insert "\n\n")
-      (setq cursor-here (point))
       (if org-working-set--ids
           (mapconcat (lambda (id)
                        (let (head)
