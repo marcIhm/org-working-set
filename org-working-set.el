@@ -112,12 +112,12 @@
        (("d") . org-working-set-circle-delete-current)
        (("<escape>") . org-working-set-circle-bail-out)
        (("C-g") . org-working-set-circle-quit))))
-  "Keymap used in working set circle")
+  "Keymap used in working set circle.")
 
 (defvar org-working-set-circle-help-strings
   '("; type c,space,h,b,d,q,ret,esc,bs,m,w or ? for short help" .
 "; type 'c' or space to jump to next node in circle; 'h' for heading, 'b' for bottom of node; type 'd' to delete this node from list; 'q',<return> accepts current position and clocks in, <escape> skips clocking in; <backspace> proceeds in reverse order, 'm' or 'w' switch to working set menu, C-g returns to initial position")
-  "Short and long help to be presented in working set circle")
+  "Short and long help to be presented in working set circle.")
 
 (defvar org-working-set-menu-keymap
   (let ((keymap (make-sparse-keymap)))
@@ -139,14 +139,14 @@
        (("q") . org-working-set-menu-quit)
        (("?") . org-working-set-menu-help)
        (("r") . org-working-set-menu-rebuild))))
-  "Keymap used in working set menu")
+  "Keymap used in working set menu.")
 
 (defvar org-working-set-menu-help-strings
   '("Press <return>,<S-return>,<tab>,<S-tab>,h,H,b,B,p,d,u,q,r,c,~,* or ? to toggle short help." .
     "List of working-set nodes. Pressing <return> on a list element jumps to node in other window and deletes this window, <tab> does the same but keeps this window, <S-return> and <S-tab> do not clock, `h' and `b' jump to bottom of node unconditionally (with capital letter in other windows), `p' peeks into node from current line, `d' deletes node from working-set immediately, `u' undoes last delete, `q' aborts and deletes this buffer, `r' rebuilds its content, `c' or `~' toggles clocking. Markers on nodes are: `*' for last visited and `~' do not clock.")
-  "Short and long help to be presented in working set menu")
+  "Short and long help to be presented in working set menu.")
 
-(defvar org-working-set--menu-keymap nil "Keymap used in working set menu")
+(defvar org-working-set--menu-keymap nil "Keymap used in working set menu.")
 
 (defconst org-working-set--menu-buffer-name "*working-set of org-nodes*" "Name of buffer with list of working-set nodes.")
 
@@ -357,7 +357,7 @@ Optional argument SILENT does not issue final message."
 
 
 (defun org-working-set-circle-switch-to-menu ()
-  "Leave working set circle and enter menu"
+  "Leave working set circle and enter menu."
     (interactive)
   (org-working-set--message "Switching to menu")
   (org-working-set--circle-finished-helper t)
@@ -511,28 +511,28 @@ Optional argument BACK"
 
 ;; A series of similar functions to be used in org-working-set-menu-keymap
 (defun org-working-set-menu-go--this-win--go-def--clock-in ()
-  "Go to node specified by line under cursor; variants: go in this win, go to default location, clock in"
+  "Go to node specified by line under cursor; variants: go in this win, go to default location, clock in."
   (interactive) (org-working-set-menu-go nil nil nil nil))
 (defun org-working-set-menu-go--this-win--go-def--no-clock ()
-  "Go to node specified by line under cursor; variants: go in this win, go to default location, do not clock in"
+  "Go to node specified by line under cursor; variants: go in this win, go to default location, do not clock in."
   (interactive) (org-working-set-menu-go nil nil nil t))
 (defun org-working-set-menu-go--other-win--go-def--clock-in ()
-  "Go to node specified by line under cursor; variants: go in other win, go to default location, clock in"
+  "Go to node specified by line under cursor; variants: go in other win, go to default location, clock in."
   (interactive) (org-working-set-menu-go t nil nil nil))
 (defun org-working-set-menu-go--other-win--go-def--no-clock ()
-  "Go to node specified by line under cursor; variants: go in other win, go to default location, do not clock in"
+  "Go to node specified by line under cursor; variants: go in other win, go to default location, do not clock in."
   (interactive) (org-working-set-menu-go t nil nil t))
 (defun org-working-set-menu-go--this-win--go-head--clock-in ()
-  "Go to node specified by line under cursor; variants: go in this win, go to head, clock in"
+  "Go to node specified by line under cursor; variants: go in this win, go to head, clock in."
   (interactive) (org-working-set-menu-go nil t nil nil))
 (defun org-working-set-menu-go--this-win--go-head--no-clock ()
-  "Go to node specified by line under cursor; variants: go in this win, go to head, do not clock in"
+  "Go to node specified by line under cursor; variants: go in this win, go to head, do not clock in."
   (interactive) (org-working-set-menu-go nil t nil t))
 (defun org-working-set-menu-go--this-win--go-bottom--clock-in ()
-  "Go to node specified by line under cursor; variants: go in this win, go to bottom, clock in"
+  "Go to node specified by line under cursor; variants: go in this win, go to bottom, clock in."
   (interactive) (org-working-set-menu-go nil nil t nil))
 (defun org-working-set-menu-go--this-win--go-bottom--no-clock ()
-  "Go to node specified by line under cursor; variants: go in this win, go to bottom, do not clock in"
+  "Go to node specified by line under cursor; variants: go in this win, go to bottom, do not clock in."
   (interactive) (org-working-set-menu-go nil nil t t))
 
 
@@ -608,7 +608,7 @@ The Boolean arguments OTHER-WIN, GO-BOTTOM, GO-HEAD and NO-CLOCK specify variant
 
 
 (defun org-working-set-menu-help ()
-  "Toggle between long and short help in working set menu"
+  "Toggle between long and short help in working set menu."
   (interactive)
   (setq org-working-set--short-help-wanted (not org-working-set--short-help-wanted))
   (org-working-set-menu-rebuild t))
@@ -620,8 +620,7 @@ Optional argument RESIZE adjusts window size."
   (interactive)
   (let (cursor-here lb)
     (with-current-buffer (get-buffer-create org-working-set--menu-buffer-name)
-      (make-local-variable 'line-move-visual)
-      (setq line-move-visual nil)
+      (set (make-local-variable 'line-move-visual) nil)
       (setq buffer-read-only nil)
       (cursor-intangible-mode)
       (erase-buffer)
