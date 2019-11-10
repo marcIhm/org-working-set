@@ -90,6 +90,64 @@
 (defvar org-working-set--overlay nil "Overlay to display name of current working-set node.")
 (defvar org-working-set--short-help-wanted nil "Non-nil, if short help should be displayed in working-set menu.")
 
+(defun org-working-set--define-keymap (keymap keylist)
+  "Define Keys given by KEYLIST in KEYMAP."
+  (dolist (keyentry keylist)
+    (dolist (key (car keyentry))
+      (define-key keymap (kbd key) (cdr keyentry))))
+  keymap)
+
+(defvar org-working-set-circle-keymap
+  (let ((keymap (make-sparse-keymap)))
+    (set-keymap-parent keymap org-mode-map)
+    (org-working-set--define-keymap
+     keymap
+     '((("c" "SPC") . org-working-set-circle-forward)
+       (("RET" "q") . org-working-set-circle-done)
+       (("DEL" "<backspace>") . org-working-set-circle-backward)
+       (("w" "m") . org-working-set-circle-switch-to-menu)
+       (("h") . org-working-set-circle-head-of-node)
+       (("b") . org-working-set-circle-bottom-of-node)
+       (("?") . org-working-set-circle-show-help)
+       (("d") . org-working-set-circle-delete-current)
+       (("<escape>") . org-working-set-circle-bail-out)
+       (("C-g") . org-working-set-circle-quit))))
+  "Keymap used in working set circle")
+
+(defvar org-working-set-circle-help-strings
+  '("; type c,space,h,b,d,q,ret,esc,bs,m,w or ? for short help" .
+"; type 'c' or space to jump to next node in circle; 'h' for heading, 'b' for bottom of node; type 'd' to delete this node from list; 'q',<return> accepts current position and clocks in, <escape> skips clocking in; <backspace> proceeds in reverse order, 'm' or 'w' switch to working set menu, C-g returns to initial position")
+  "Short and long help to be presented in working set circle")
+
+(defvar org-working-set-menu-keymap
+  (let ((keymap (make-sparse-keymap)))
+    (set-keymap-parent keymap org-mode-map)
+    (org-working-set--define-keymap
+     keymap
+     '((("<return>" "RET") . org-working-set-menu-go--this-win--go-def--clock-in)
+       (("<S-return>") . org-working-set-menu-go--this-win--go-def--no-clock)
+       (("<tab>") . org-working-set-menu-go--other-win--go-def--clock-in)
+       (("<S-tab>") . org-working-set-menu-go--other-win--go-def--no-clock)
+       (("h") . org-working-set-menu-go--this-win--go-head--clock-in)
+       (("H") . org-working-set-menu-go--this-win--go-head--no-clock)
+       (("b") . org-working-set-menu-go--this-win--go-bottom--clock-in)
+       (("B") . org-working-set-menu-go--this-win--go-bottom--no-clock)
+       (("p") . org-working-set-menu-peek)
+       (("c" "~") . org-working-set-menu-toggle-clock)
+       (("d") . org-working-set-menu-delete-entry)
+       (("u") . org-working-set-menu-undo)
+       (("q") . org-working-set-menu-quit)
+       (("?") . org-working-set-menu-help)
+       (("r") . org-working-set-menu-rebuild))))
+  "Keymap used in working set menu")
+
+(defvar org-working-set-menu-help-strings
+  '("Press <return>,<S-return>,<tab>,<S-tab>,h,H,b,B,p,d,u,q,r,c,~,* or ? to toggle short help." .
+    "List of working-set nodes. Pressing <return> on a list element jumps to node in other window and deletes this window, <tab> does the same but keeps this window, <S-return> and <S-tab> do not clock, `h' and `b' jump to bottom of node unconditionally (with capital letter in other windows), `p' peeks into node from current line, `d' deletes node from working-set immediately, `u' undoes last delete, `q' aborts and deletes this buffer, `r' rebuilds its content, `c' or `~' toggles clocking. Markers on nodes are: `*' for last visited and `~' do not clock.")
+  "Short and long help to be presented in working set menu")
+
+(defvar org-working-set--menu-keymap nil "Keymap used in working set menu")
+
 (defconst org-working-set--menu-buffer-name "*working-set of org-nodes*" "Name of buffer with list of working-set nodes.")
 
 ;; Version of this package
@@ -260,89 +318,109 @@ Optional argument SILENT does not issue final message."
   (setq org-working-set--circle-before-marker (point-marker))
   (setq org-working-set--circle-win-config (current-window-configuration))
 
-  (let ((kmap (make-sparse-keymap)))
-    (mapc (lambda (x)
-            (define-key kmap (vector x)
-              (lambda () (interactive)
-                (setq this-command last-command)
-                (org-working-set--message (org-working-set--circle-continue)))))
-          (list ?c ? ))
-    (mapc (lambda (x)
-            (define-key kmap (kbd x)
-              (lambda () (interactive)
-                (org-working-set--message "Circle done")
-                (org-working-set--circle-finished-helper nil))))
-          (list "RET" "<return>" "q"))
-    (mapc (lambda (x)
-            (define-key kmap (kbd x)
-              (lambda () (interactive)
-                (setq this-command last-command)
-                (org-working-set--message (org-working-set--circle-continue nil t)))))
-          (list "DEL" "<backspace>"))
-    (mapc (lambda (x)
-            (define-key kmap (kbd x)
-              (lambda () (interactive)
-                (org-working-set--message "Switching to menu")
-                (org-working-set--circle-finished-helper t)
-                (run-with-timer 0 nil 'org-working-set--menu))))
-          (list "w" "m"))
-    (define-key kmap (vector ?h)
-      (lambda () (interactive)
-        (org-working-set--head-of-node)
-        (org-working-set--message "On heading of node from working-set")))
-    (define-key kmap (vector ?b)
-      (lambda () (interactive)
-        (org-working-set--bottom-of-node)
-        (org-working-set--message "At bottom of node from working-set")))
-    (define-key kmap (vector ??)
-      (lambda () (interactive)
-        (setq org-working-set--short-help-wanted t)
-        (message (org-working-set--circle-continue t))
-        (setq org-working-set--cancel-wait-function nil)
-        (setq org-working-set--short-help-wanted nil)))
-    (define-key kmap (vector ?d)
-      (lambda () (interactive)
-        (setq this-command last-command)
-        (org-working-set--nodes-persist)
-        (org-working-set--message (concat (org-working-set--delete-from) " "
-                                  (org-working-set--circle-continue)))
-        (setq org-working-set--cancel-wait-function nil)))
-    (define-key kmap (kbd "<escape>")
-      (lambda () (interactive)
-        (if org-working-set-clock-into-working-set
-            (org-working-set--message "Bailing out of circle, no clock in"))
-        (org-working-set--circle-finished-helper t)))
-    (define-key kmap (kbd "C-g")
-      (lambda () (interactive)
-        (if org-working-set--circle-before-marker
-            (org-goto-marker-or-bmk org-working-set--circle-before-marker))
-        (if org-working-set--circle-win-config
-            (set-window-configuration org-working-set--circle-win-config))
-        (message "Quit")
-        (org-working-set--circle-finished-helper nil)))
-    
-    (setq org-working-set--cancel-wait-function
-          (set-transient-map
-           kmap t
-           ;; this is run (in any case) on leaving the map
-           (lambda () (cancel-timer org-working-set--cancel-timer)
-             (message nil)
-             ;; Clean up overlay
-             (if org-working-set--overlay (delete-overlay org-working-set--overlay))
-             (setq org-working-set--overlay nil)
-             (if (and org-working-set-clock-into-working-set
-                      (not (member (org-id-get) org-working-set--ids-do-not-clock))
-                      (not org-working-set--circle-bail-out))
-                 (let (keys)
-                   ;; save and repeat terminating key, because org-clock-in might read interactively
-                   (if (input-pending-p) (setq keys (read-key-sequence nil)))
-                   (ignore-errors (org-with-limited-levels (org-clock-in)))
-                   (if keys (setq unread-command-events (listify-key-sequence keys)))))
-             (if org-working-set--circle-before-marker (move-marker org-working-set--circle-before-marker nil))
-             (setq org-working-set--circle-bail-out nil))))
+  (setq org-working-set--cancel-wait-function
+        (set-transient-map
+         org-working-set-circle-keymap t
+         ;; this is run (in any case) on leaving the map
+         (lambda () (cancel-timer org-working-set--cancel-timer)
+           (message nil)
+           ;; Clean up overlay
+           (if org-working-set--overlay (delete-overlay org-working-set--overlay))
+           (setq org-working-set--overlay nil)
+           (if (and org-working-set-clock-into-working-set
+                    (not (member (org-id-get) org-working-set--ids-do-not-clock))
+                    (not org-working-set--circle-bail-out))
+               (let (keys)
+                 ;; save and repeat terminating key, because org-clock-in might read interactively
+                 (if (input-pending-p) (setq keys (read-key-sequence nil)))
+                 (ignore-errors (org-with-limited-levels (org-clock-in)))
+                 (if keys (setq unread-command-events (listify-key-sequence keys)))))
+           (if org-working-set--circle-before-marker (move-marker org-working-set--circle-before-marker nil))
+           (setq org-working-set--circle-bail-out nil))))
 
-    ;; first move
-    (org-working-set--message (org-working-set--circle-continue t))))
+  ;; first move
+  (org-working-set--message (org-working-set--circle-continue t)))
+
+
+(defun org-working-set-circle-forward ()
+  "Move forward in working set circle."
+    (interactive)
+  (setq this-command last-command)
+  (org-working-set--message (org-working-set--circle-continue)))
+
+
+(defun org-working-set-circle-backward ()
+  "Move backward in working set circle."
+  (interactive)
+  (setq this-command last-command)
+  (org-working-set--message (org-working-set--circle-continue nil t)))
+
+
+(defun org-working-set-circle-switch-to-menu ()
+  "Leave working set circle and enter menu"
+    (interactive)
+  (org-working-set--message "Switching to menu")
+  (org-working-set--circle-finished-helper t)
+  (run-with-timer 0 nil 'org-working-set--menu))
+
+
+(defun org-working-set-circle-done ()
+  "Finish working set circle regularly."
+    (interactive)
+  (org-working-set--message "Circle done")
+  (org-working-set--circle-finished-helper nil))
+
+
+(defun org-working-set-circle-head-of-node ()
+  "Go to head of node after leaving working set circle."
+  (interactive)
+  (org-working-set--head-of-node)
+  (org-working-set--message "On heading of node from working-set"))
+
+
+(defun org-working-set-circle-bottom-of-node ()
+  "Go to head of node after leaving working set circle."
+  (interactive)
+  (org-working-set--bottom-of-node)
+  (org-working-set--message "At bottom of node from working-set"))
+
+
+(defun org-working-set-circle-show-help ()
+  "Show help within working set circle."
+  (interactive)
+  (setq org-working-set--short-help-wanted t)
+  (message (org-working-set--circle-continue t))
+  (setq org-working-set--cancel-wait-function nil)
+  (setq org-working-set--short-help-wanted nil))
+
+
+(defun org-working-set-circle-delete-current ()
+  "Delete current entry from working set circle."
+  (interactive)
+  (setq this-command last-command)
+  (org-working-set--nodes-persist)
+  (org-working-set--message (concat (org-working-set--delete-from) " "
+                                    (org-working-set--circle-continue)))
+  (setq org-working-set--cancel-wait-function nil))
+
+
+(defun org-working-set-circle-bail-out ()
+  "Leave working set circle on current node, but do not clock in."
+  (interactive)
+  (if org-working-set-clock-into-working-set
+      (org-working-set--message "Bailing out of circle, no clock in"))
+  (org-working-set--circle-finished-helper t))
+
+
+(defun org-working-set-circle-quit ()
+  "Leave working set circle and return to prior node."
+  (interactive)
+  (if org-working-set--circle-before-marker
+      (org-goto-marker-or-bmk org-working-set--circle-before-marker))
+  (if org-working-set--circle-win-config
+      (set-window-configuration org-working-set--circle-win-config))
+  (message "Quit")
+  (org-working-set--circle-finished-helper nil))
 
 
 (defun org-working-set--circle-finished-helper (bail-out)
@@ -416,130 +494,145 @@ Optional argument BACK"
        (format " single node"))
      ;; help text
      (if org-working-set--short-help-wanted
-         "; type 'c' or space to jump to next node in circle; 'h' for heading, 'b' for bottom of node; type 'd' to delete this node from list; 'q',<return> accepts current position and clocks in, <escape> skips clocking in; <backspace> proceeds in reverse order, 'm' or 'w' switch to working set menu, C-g returns to initial position"
-       "; type c,space,h,b,d,q,ret,esc,bs,m,w or ? for short help"))))
+         (cdr org-working-set-circle-help-strings)
+       (car org-working-set-circle-help-strings)))))
 
 
 (defun org-working-set--menu ()
-  "Show menu to let user choose among working-set nodes."
+  "Show menu to let user choose among and manipulate list of working-set nodes."
 
   (setq  org-working-set--short-help-wanted nil)
   (pop-to-buffer org-working-set--menu-buffer-name '((display-buffer-at-bottom)))
-  (org-working-set--menu-rebuild t)
+  (org-working-set-menu-rebuild t)
 
-  (org-working-set--menu-install-keyboard-shortcuts)
+  (use-local-map org-working-set-menu-keymap)
   "Buffer with nodes of working-set")
 
 
-(defun org-working-set--menu-install-keyboard-shortcuts ()
-  "Install keyboard shortcuts for working-set menu.
-See `org-working-set--menu-rebuld' for a list of commands."
-  (let (keymap)
-    (setq keymap (make-sparse-keymap))
-    (set-keymap-parent keymap org-mode-map)
-
-    ;; various keys to jump to node
-    (mapc (lambda (x) (define-key keymap (kbd x)
-                   (lambda () (interactive)
-                     (org-working-set--menu-action x))))
-          (list "<return>" "<S-return>" "RET" "<tab>" "<S-tab>" "h" "H" "b" "B"))
-
-    (define-key keymap (kbd "p")
-      (lambda () (interactive)
-        (save-window-excursion
-          (save-excursion
-            (org-working-set--goto-id (org-working-set--menu-get-id))
-            (delete-other-windows)
-            (recenter 1)
-            (read-char "Peeking into node, any key to return." nil 10)))))
-
-    (define-key keymap (kbd "d")
-      (lambda () (interactive)
-        (message (org-working-set--delete-from (org-working-set--menu-get-id)))
-        (org-working-set--nodes-persist)
-        (org-working-set--menu-rebuild)))
-
-    (mapc (lambda (x) (define-key keymap (kbd x)
-                   (lambda () (interactive)
-                     (let ((id (org-working-set--menu-get-id)))
-                       (setq org-working-set--ids-do-not-clock
-                             (if (member id org-working-set--ids-do-not-clock)
-                                 (delete id org-working-set--ids-do-not-clock)
-                               (cons id org-working-set--ids-do-not-clock)))
-                       (org-working-set--nodes-persist)
-                       (org-working-set--menu-rebuild)))))
-          (list "c" "~"))
-
-    (define-key keymap (kbd "u")
-      (lambda () (interactive)
-        (message (org-working-set--nodes-restore))
-        (org-working-set--nodes-persist)
-        (org-working-set--menu-rebuild t)))
-
-    (define-key keymap (kbd "q")
-      (lambda () (interactive)
-        (delete-windows-on org-working-set--menu-buffer-name)
-        (kill-buffer org-working-set--menu-buffer-name)))
-
-    (define-key keymap (kbd "r")
-      (lambda () (interactive)
-        (org-working-set--menu-rebuild)))
-
-    (define-key keymap (kbd "?")
-      (lambda () (interactive)
-        (setq org-working-set--short-help-wanted (not org-working-set--short-help-wanted))
-        (org-working-set--menu-rebuild t)))
-
-    (use-local-map keymap)))
+;; A series of similar functions to be used in org-working-set-menu-keymap
+(defun org-working-set-menu-go--this-win--go-def--clock-in ()
+  "Go to node specified by line under cursor; variants: go in this win, go to default location, clock in"
+  (interactive) (org-working-set-menu-go nil nil nil nil))
+(defun org-working-set-menu-go--this-win--go-def--no-clock ()
+  "Go to node specified by line under cursor; variants: go in this win, go to default location, do not clock in"
+  (interactive) (org-working-set-menu-go nil nil nil t))
+(defun org-working-set-menu-go--other-win--go-def--clock-in ()
+  "Go to node specified by line under cursor; variants: go in other win, go to default location, clock in"
+  (interactive) (org-working-set-menu-go t nil nil nil))
+(defun org-working-set-menu-go--other-win--go-def--no-clock ()
+  "Go to node specified by line under cursor; variants: go in other win, go to default location, do not clock in"
+  (interactive) (org-working-set-menu-go t nil nil t))
+(defun org-working-set-menu-go--this-win--go-head--clock-in ()
+  "Go to node specified by line under cursor; variants: go in this win, go to head, clock in"
+  (interactive) (org-working-set-menu-go nil t nil nil))
+(defun org-working-set-menu-go--this-win--go-head--no-clock ()
+  "Go to node specified by line under cursor; variants: go in this win, go to head, do not clock in"
+  (interactive) (org-working-set-menu-go nil t nil t))
+(defun org-working-set-menu-go--this-win--go-bottom--clock-in ()
+  "Go to node specified by line under cursor; variants: go in this win, go to bottom, clock in"
+  (interactive) (org-working-set-menu-go nil nil t nil))
+(defun org-working-set-menu-go--this-win--go-bottom--no-clock ()
+  "Go to node specified by line under cursor; variants: go in this win, go to bottom, do not clock in"
+  (interactive) (org-working-set-menu-go nil nil t t))
 
 
-(defun org-working-set--menu-action (key)
-  "Perform some actions for working-set menu.
-Argument KEY has been pressed to trigger this function."
-  (setq key (intern key))
+(defun org-working-set-menu-go (other-win go-bottom go-head no-clock)
+  "Go to node specified by line under cursor.
+The Boolean arguments OTHER-WIN, GO-BOTTOM, GO-HEAD and NO-CLOCK specify variants of the action."
+  (and go-bottom go-head
+       (error "Internal error, params two and three cannot both be true"))
   (let (id)
     (setq id (org-working-set--menu-get-id))
-    (cl-case key
-      ((<return> <S-return> RET h b)
-       (delete-window)
-       (org-working-set--goto-id id)
-       (recenter 1))
-      ((<tab> <S-tab> H B)
-       (other-window 1)
-       (org-working-set--goto-id id)))
-    (if (or (memq key '(b B))
-            (and (memq key '(<return> <S-return> RET))
-                 org-working-set-goto-bottom-in-working-set)) (org-working-set--bottom-of-node))
-    (when (and (not (memq key '(<S-return> <S-tab>)))
+    (if other-win
+        (progn
+          (other-window 1)
+          (org-working-set--goto-id id))
+      (delete-window)
+      (org-working-set--goto-id id)
+      (recenter 1))
+    
+    (if (or go-bottom
+            (and (not go-head)
+                 org-working-set-goto-bottom-in-working-set))
+        (org-working-set--bottom-of-node))
+    (when (and (not no-clock)
                (not (member id org-working-set--ids-do-not-clock)))
       (setq org-working-set--id-last-goto id)
       (if org-working-set-clock-into-working-set (org-with-limited-levels (org-clock-in))))))
 
 
-(defun org-working-set--menu-get-id ()
-  "Extract id from current line in working-set menu."
-  (or (get-text-property (point) 'org-working-set-id)
-      (error "This line does not point to a node from working-set")))
+(defun org-working-set-menu-peek ()
+  "Peek into node specified by line under cursor."
+  (interactive)
+  (save-window-excursion
+    (save-excursion
+      (org-working-set--goto-id (org-working-set--menu-get-id))
+      (delete-other-windows)
+      (recenter 1)
+      (read-char "Peeking into node, any key to return." nil 10))))
 
 
-(defun org-working-set--menu-rebuild (&optional resize)
+(defun org-working-set-menu-toggle-clock ()
+  "Toggle clocking for node under cursor."
+  (interactive)
+  (let ((id (org-working-set--menu-get-id)))
+  (setq org-working-set--ids-do-not-clock
+        (if (member id org-working-set--ids-do-not-clock)
+            (delete id org-working-set--ids-do-not-clock)
+          (cons id org-working-set--ids-do-not-clock)))
+  (org-working-set--nodes-persist)
+  (org-working-set-menu-rebuild)))
+
+
+(defun org-working-set-menu-delete-entry ()
+  "Delete node under cursor from working set."
+  (interactive)
+  (message (org-working-set--delete-from (org-working-set--menu-get-id)))
+  (org-working-set--nodes-persist)
+  (org-working-set-menu-rebuild))
+
+
+(defun org-working-set-menu-undo ()
+  "Undo last modification to working set."
+  (interactive)
+  (message (org-working-set--nodes-restore))
+  (org-working-set--nodes-persist)
+  (org-working-set-menu-rebuild t))
+
+
+(defun org-working-set-menu-quit ()
+  "Quit working set menu."
+  (interactive)
+  (delete-windows-on org-working-set--menu-buffer-name)
+  (kill-buffer org-working-set--menu-buffer-name))
+
+
+(defun org-working-set-menu-help ()
+  "Toggle between long and short help in working set menu"
+  (interactive)
+  (setq org-working-set--short-help-wanted (not org-working-set--short-help-wanted))
+  (org-working-set-menu-rebuild t))
+
+
+(defun org-working-set-menu-rebuild (&optional resize)
   "Rebuild content of working-set menu-buffer.
 Optional argument RESIZE adjusts window size."
+  (interactive)
   (let (cursor-here lb)
     (with-current-buffer (get-buffer-create org-working-set--menu-buffer-name)
-      (setq cursor-here (point))
       (make-local-variable 'line-move-visual)
       (setq line-move-visual nil)
       (setq buffer-read-only nil)
       (cursor-intangible-mode)
       (erase-buffer)
       (insert (propertize (if org-working-set--short-help-wanted
-                              (org-working-set--wrap "List of working-set nodes. Pressing <return> on a list element jumps to node in other window and deletes this window, <tab> does the same but keeps this window, <S-return> and <S-tab> do not clock do not clock, `h' and `b' jump to bottom of node unconditionally (with capital letter in other windows), `p' peeks into node from current line, `d' deletes node from working-set immediately, `u' undoes last delete, `q' aborts and deletes this buffer, `r' rebuilds its content, `c' or `~' toggles clocking. Markers on nodes are: `*' for last visited and `~' do not clock.")
-                            "Press <return>,<S-return>,<tab>,<S-tab>,h,H,b,B,p,d,u,q,r,c,~,* or ? to toggle short help.")
+                              (org-working-set--wrap (cdr org-working-set-menu-help-strings))
+                            (car org-working-set-menu-help-strings))
                           'face 'org-agenda-dimmed-todo-face
                           'cursor-intangible t
                           'front-sticky t))
       (insert "\n\n")
+      (setq cursor-here (point))
       (if org-working-set--ids
           (mapconcat (lambda (id)
                        (let (head)
@@ -567,6 +660,12 @@ Optional argument RESIZE adjusts window size."
         (fit-window-to-buffer (get-buffer-window))
         (enlarge-window 1))
       (setq buffer-read-only t))))
+
+
+(defun org-working-set--menu-get-id ()
+  "Extract id from current line in working-set menu."
+  (or (get-text-property (point) 'org-working-set-id)
+      (error "This line does not point to a node from working-set")))
 
 
 (defun org-working-set--goto-id (id)
