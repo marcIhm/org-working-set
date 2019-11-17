@@ -65,7 +65,7 @@
 
 ;;; Change Log:
 
-;;   Version 1.0.0
+;;   Version 1.1
 ;;
 ;;   - Moved functions for working set into its own file
 ;;   - Show breadcrumbs in working-set-menu

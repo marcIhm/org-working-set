@@ -102,7 +102,7 @@
 
    See ChangeLog.org for older notes.
 
-*** 1.0
+*** 1.1
 
     - Moved functions for working set into its own file
     - Show breadcrumbs in working-set-menu
