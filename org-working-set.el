@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 1.0.4
+;; Version: 1.2.0
 ;; Package-Requires: ((emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -65,6 +65,11 @@
 
 ;;; Change Log:
 
+;;   Version 1.2
+;;
+;;   - Added a log of working set nodes
+;;   - The node designated by org-working-set-id will be used to store this log
+;;
 ;;   Version 1.1
 ;;
 ;;   - Moved functions for working set into its own file
@@ -160,7 +165,7 @@
   :group 'org)
 
 (defcustom org-working-set-id nil
-  "Id of the Org-mode node, which contains the index table.  This can be set to the id of any node you like; only its property drawer will be used."
+  "Id of the Org-mode node, which contains the index table.  This should be set to the id of an empty node. The property drawer will be used to store the ids of the working-set nodes, the body will be populated with an ever-growing list of nodes, that have been added."
   :type 'string
   :group 'org-working-set)
 
@@ -233,14 +238,14 @@ Optional argument SILENT does not issue final message."
           (setq org-working-set--ids (split-string (or (org-entry-get nil "working-set-nodes") "")))
           (setq org-working-set--ids-do-not-clock (split-string (or (org-entry-get nil "working-set-nodes-do-not-clock") "")))))))
   
-  (let ((char-choices (list ?s ?S ?a ?A ?d ?u ?w ?m ?c ?g ? ??))
-        id text more-text char prompt ids-up-to-top)
+  (let ((char-choices (list ?s ?S ?a ?A ?d ?u ?l ?w ?m ?c ?g ? ??))
+        id name text more-text char prompt ids-up-to-top)
 
-    (setq prompt (format "Please specify action on working-set of %d nodes (s,S,a,A,d,u,m,w,c,space,g or ? for short help) - " (length org-working-set--ids)))
+    (setq prompt (format "Please specify action on working-set of %d nodes (s,S,a,A,d,u,l,m,w,c,space,g or ? for short help) - " (length org-working-set--ids)))
     (while (or (not (memq char char-choices))
                (= char ??))
       (setq char (read-char-choice prompt char-choices))
-      (setq prompt (format "Actions on working-set of %d nodes:  s)et working-set to this node alone,  S)et but do not clock,  a)ppend this node to set,  A)ppend but do not clock,  d)elete this node from list,  u)ndo last modification of working set,  w),m)enu to edit working set (same as 'w'),  c),space) enter working set circle,  g)o to bottom position in current node.  Please choose - " (length org-working-set--ids))))
+      (setq prompt (format "Actions on working-set of %d nodes:  s)et working-set to this node alone,  S)et but do not clock,  a)ppend this node to set,  A)ppend but do not clock,  d)elete this node from list,  u)ndo last modification of working set,  l) shows log of entries added,  w),m)enu to edit working set (same as 'w'),  c),space) enter working set circle,  g)o to bottom position in current node.  Please choose - " (length org-working-set--ids))))
 
     (when (and (memq char (list ?s ?S ?a ?A ?d))
                (not (string= major-mode "org-mode")))
@@ -263,6 +268,8 @@ Optional argument SILENT does not issue final message."
            ((or (eq char ?a)
                 (eq char ?A))
             (setq id (org-id-get-create))
+            (org-with-limited-levels
+             (setq name (org-get-heading t t t t)))
             (unless (member id org-working-set--ids)
               ;; remove any children, that are already in working-set
               (setq org-working-set--ids
@@ -280,7 +287,8 @@ Optional argument SILENT does not issue final message."
               (when (seq-intersection ids-up-to-top org-working-set--ids)
                 (setq org-working-set--ids (seq-difference org-working-set--ids ids-up-to-top))
                 (setq more-text (concat more-text ", replacing its parent")))
-              (setq org-working-set--ids (cons id org-working-set--ids)))
+              (setq org-working-set--ids (cons id org-working-set--ids))
+              (org-working-set--add-to-log id name))
             (if (eq char ?A)
                 (setq org-working-set--ids-do-not-clock (cons id org-working-set--ids-do-not-clock))
               (setq org-working-set--id-last-goto id)
@@ -300,6 +308,11 @@ Optional argument SILENT does not issue final message."
             (org-working-set--bottom-of-node)
             "at bottom of node")
 
+           ((eq char ?l)
+            (org-id-goto org-working-set-id)
+            (org-end-of-meta-data t)
+            "log of additions to working set")
+
            ((eq char ?u)
             (org-working-set--nodes-restore))))
 
@@ -308,6 +321,25 @@ Optional argument SILENT does not issue final message."
     (setq text (format text (or more-text "") (length org-working-set--ids) (if (cdr org-working-set--ids) "s" "")))
     (unless silent (message (concat (upcase (substring text 0 1)) (substring text 1))))
     text))
+
+
+(defun org-working-set--add-to-log (id name)
+  "Add entry into working-set node."
+  (let (marker)
+    (unless (setq marker (org-id-find org-working-set-id 'marker))
+      (error "Could not find node for working-set history id %s" org-working-set-id))
+    (save-excursion
+      (set-buffer (marker-buffer marker))
+      (goto-char (marker-position marker))
+      (org-end-of-meta-data t)
+      (if (looking-at "^[[:blank:]]*$")
+          (forward-line))
+      (insert "- ")
+      (org-insert-time-stamp nil nil t)
+      (insert (format " [[id:%s][%s]]\n" id name))
+      (forward-line -1)
+      (org-indent-line))
+    (move-marker marker nil)))
 
 
 (defun org-working-set--circle-start ()
@@ -810,7 +842,7 @@ Optional argument ID gives the node to delete."
       (org-mode)
       (mapc (lambda (x) (insert x) (org-fill-paragraph) (insert "\n"))
             (list
-             "\nThe required variable `org-working-set-id' has not been set. It should contain the id of a node, where org-working-set will store its runtime information within two special properties. The rest of the node will not be touched."
+             "\nThe required variable `org-working-set-id' has not been set. It should contain the id of an empty node, where org-working-set will store its runtime information. The property drawer will be used to store the ids of the working-set nodes, the body will be populated with an ever-growing list of nodes, that have been added."
              "\nThere are three ways to set `org-working-set-id':"
              "- Choose a node and copy the value of its ID-property; use the customize-interface to set `org-working-set-id' to the chosen id."
              "- As above, but edit your .emacs and insert a setq-clause."
