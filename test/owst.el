@@ -1,6 +1,6 @@
 ;;; owst.el --- Regression Tests for org-working-set.el
 
-;; Copyright (C) 2011-2018 Free Software Foundation, Inc.
+;; Copyright (C) 2019-2020 Free Software Foundation, Inc.
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; Keywords: outlines, regression-tests, elisp
@@ -44,11 +44,11 @@
 ;;; Code:
 
 (require 'org-working-set)
+(require 'org-id)
 (require 'cl-lib)
 (require 'ert)
 
 (defvar owst-work-buffer nil)
-(defvar owst-ert-work-file (concat temporary-file-directory "owst-ert-work.org"))
 
 ;;
 ;; All tests
@@ -181,6 +181,15 @@
     (should (= (length org-working-set--ids) 1))))
 
 
+(ert-deftest owst-test-log-of-working-set ()
+  (owst-with-test-setup
+   (owst-goto "zwei")
+   (owst-do "a")
+   (owst-goto "eins")
+   (org-end-of-meta-data t)
+   (should (looking-at "[[:blank:]]+-"))))
+
+
 ;;
 ;; Helper functions
 ;;
@@ -280,6 +289,10 @@
 ")
     (org-mode)
     (setq org-working-set-id "53e15dce-6f28-4674-bd65-e63b516d97ac")
+    (org-id-add-location org-working-set-id owst-ert-work-file)
+    (basic-save-buffer)
+    (org-id-update-id-locations (list owst-ert-work-file) t)
+    (puthash org-working-set-id owst-ert-work-file org-id-locations)
     owst-work-buffer))
 
 

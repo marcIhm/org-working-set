@@ -2,7 +2,6 @@
 (add-to-list 'load-path "c:/org-working-set")
 (add-to-list 'load-path "c:/org-working-set/test")
 
-(add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/") t)
 (setq package-user-dir "c:/org-working-set/elpa")
 (package-initialize)
 (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/") t)
@@ -16,6 +15,7 @@
 (add-hook 'emacs-lisp-mode-hook (lambda () (paredit-mode +1)))
 
 (setq org-id-locations-file "c:/org-working-set/org-id-locations-for-test")
+(setq owst-ert-work-file "c:/org-working-set/owst-ert-work.org")
 
 (menu-bar-mode -1)
 (tool-bar-mode -1)

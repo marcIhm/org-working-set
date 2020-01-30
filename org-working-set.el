@@ -1,6 +1,6 @@
 ;;; org-working-set.el --- Manage a working-set of org-nodes  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2019 Free Software Foundation, Inc.
+;; Copyright (C) 2019-2020 Free Software Foundation, Inc.
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
@@ -310,6 +310,7 @@ Optional argument SILENT does not issue final message."
 
            ((eq char ?l)
             (org-id-goto org-working-set-id)
+            (org-working-set--unfold-buffer)
             (org-end-of-meta-data t)
             "log of additions to working set")
 
@@ -325,21 +326,20 @@ Optional argument SILENT does not issue final message."
 
 (defun org-working-set--add-to-log (id name)
   "Add entry into working-set node."
-  (let (marker)
-    (unless (setq marker (org-id-find org-working-set-id 'marker))
-      (error "Could not find node for working-set history id %s" org-working-set-id))
+  (let ((bp (org-working-set--id-bp)))
     (save-excursion
-      (set-buffer (marker-buffer marker))
-      (goto-char (marker-position marker))
+      (set-buffer (car bp))
+      (goto-char (cdr bp))
       (org-end-of-meta-data t)
+      (when (org-at-heading-p)
+        (insert "\n\n")
+        (forward-line -2))
       (if (looking-at "^[[:blank:]]*$")
           (forward-line))
+      (org-indent-line)
       (insert "- ")
       (org-insert-time-stamp nil nil t)
-      (insert (format " [[id:%s][%s]]\n" id name))
-      (forward-line -1)
-      (org-indent-line))
-    (move-marker marker nil)))
+      (insert (format "      [[id:%s][%s]]\n" id name)))))
 
 
 (defun org-working-set--circle-start ()
