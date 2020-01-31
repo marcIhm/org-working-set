@@ -289,10 +289,6 @@
 ")
     (org-mode)
     (setq org-working-set-id "53e15dce-6f28-4674-bd65-e63b516d97ac")
-    (org-id-add-location org-working-set-id owst-ert-work-file)
-    (basic-save-buffer)
-    (org-id-update-id-locations (list owst-ert-work-file) t)
-    (puthash org-working-set-id owst-ert-work-file org-id-locations)
     owst-work-buffer))
 
 
