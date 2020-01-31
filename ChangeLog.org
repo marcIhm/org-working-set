@@ -1,6 +1,12 @@
-* 1.1 until 2019-11-17 Su
+* 1.2 until 2020-01-31 Fr
+
+  - Added a log of working set nodes
+  - The node designated by org-working-set-id will be used to store this log
+
+* 1.1 until 2020-01-31 Fr
 
   - Moved functions for working set into its own file
   - Show breadcrumbs in working-set-menu
   - Prepare for melpa
+
 

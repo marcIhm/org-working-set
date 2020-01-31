@@ -6,7 +6,7 @@
 
   Read below for a description.
 
-  The current version is 1.0.4.
+  The current version is 1.2.0.
 
 ** Table of Contents
 
@@ -102,6 +102,11 @@
 
    See ChangeLog.org for older notes.
 
+*** 1.2
+
+    - Added a log of working set nodes
+    - The node designated by org-working-set-id will be used to store this log
+  
 *** 1.1
 
     - Moved functions for working set into its own file
