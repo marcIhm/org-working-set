@@ -288,7 +288,7 @@ Optional argument SILENT does not issue final message."
                 (setq org-working-set--ids (seq-difference org-working-set--ids ids-up-to-top))
                 (setq more-text (concat more-text ", replacing its parent")))
               (setq org-working-set--ids (cons id org-working-set--ids))
-              (org-working-set--add-to-log id name))
+              (org-working-set--log-add id name))
             (if (eq char ?A)
                 (setq org-working-set--ids-do-not-clock (cons id org-working-set--ids-do-not-clock))
               (setq org-working-set--id-last-goto id)
@@ -309,10 +309,7 @@ Optional argument SILENT does not issue final message."
             "at bottom of node")
 
            ((eq char ?l)
-            (org-id-goto org-working-set-id)
-            (org-working-set--unfold-buffer)
-            (org-end-of-meta-data t)
-            "log of additions to working set")
+            (org-working-set--log-enter))
 
            ((eq char ?u)
             (org-working-set--nodes-restore))))
@@ -324,8 +321,8 @@ Optional argument SILENT does not issue final message."
     text))
 
 
-(defun org-working-set--add-to-log (id name)
-  "Add entry into working-set node."
+(defun org-working-set--log-add (id name)
+  "Add entry into log of working-set nodes."
   (let ((bp (org-working-set--id-bp)))
     (save-excursion
       (set-buffer (car bp))
@@ -340,8 +337,18 @@ Optional argument SILENT does not issue final message."
       (forward-line -1)
       (org-indent-line) ; works best on empty line
       (insert "- ")
-      (org-insert-time-stamp nil nil t)
-      (insert (format "     [[id:%s][%s]]" id name)))))
+      (org-insert-time-stamp nil t t)
+      (insert (format "    [[id:%s][%s]]" id name)))))
+
+
+(defun org-working-set--log-enter ()
+  "Enter log of working set nodes and position cursor on first link."
+  (org-id-goto org-working-set-id)
+  (recenter 1)
+  (org-end-of-meta-data t)
+  (org-working-set--unfold-buffer t)
+  (search-forward "[" (line-end-position) t 2)
+  "log of additions to working set")
 
 
 (defun org-working-set--circle-start ()
@@ -813,11 +820,11 @@ Optional argument ID gives the node to delete."
     (buffer-string)))
 
 
-(defun org-working-set--unfold-buffer ()
+(defun org-working-set--unfold-buffer (skip-recenter)
   "Helper function to unfold buffer."
   (org-show-context 'tree)
   (org-reveal '(16))
-  (recenter 1))
+  (unless skip-recenter (recenter 1)))
 
 
 (defun org-working-set--id-bp ()
