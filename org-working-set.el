@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 1.2.0
+;; Version: 2.0.0
 ;; Package-Requires: ((emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -65,10 +65,18 @@
 
 ;;; Change Log:
 
-;;   Version 1.2
+;;   Version 2.0
 ;;
 ;;   - Added a log of working set nodes
 ;;   - The node designated by org-working-set-id will be used to store this log
+;;   - Simplified handling of clocking
+;;   - Retired property working-set-nodes-do-not-clock
+;;   - Renamed custom-variable org-working-set-clock-into-working-set into
+;;     org-working-set-clock-in
+;;   - Renamed org-working-set-show-working-set-overlay into
+;;     org-working-set-show-overlay
+;;   - Renamed org-working-set-goto-bottom-in-working-set into
+;;     org-working-set-goto-bottom
 ;;
 ;;   Version 1.1
 ;;
@@ -83,13 +91,11 @@
 (require 'org)
 
 (defvar org-working-set--ids nil "Ids of working-set nodes (if any).")
-(defvar org-working-set--ids-do-not-clock nil "Subset of `org-working-set--ids', that are not clocked.")
 (defvar org-working-set--ids-saved nil "Backup for ‘org-working-set--ids’.")
 (defvar org-working-set--id-last-goto nil "Id of last node from working-set, that has been visited.")
 (defvar org-working-set--circle-before-marker nil "Marker for position before entry into circle.")
 (defvar org-working-set--circle-win-config nil "Window configuration before entry into circle.")
 (defvar org-working-set--last-message nil "Last message issued by working-set commands.")
-(defvar org-working-set--circle-bail-out nil "Set, if bailing out of working-set circle.")
 (defvar org-working-set--cancel-wait-function nil "Function to call on timeout for working-set commands.")
 (defvar org-working-set--cancel-timer nil "Timer to cancel waiting for key.")
 (defvar org-working-set--overlay nil "Overlay to display name of current working-set node.")
@@ -115,13 +121,12 @@
        (("b") . org-working-set-circle-bottom-of-node)
        (("?") . org-working-set-circle-show-help)
        (("d") . org-working-set-circle-delete-current)
-       (("<escape>") . org-working-set-circle-bail-out)
        (("C-g") . org-working-set-circle-quit))))
   "Keymap used in working set circle.")
 
 (defvar org-working-set-circle-help-strings
-  '("; type c,space,h,b,d,q,ret,esc,bs,m,w or ? for short help" .
-"; type 'c' or space to jump to next node in circle; 'h' for heading, 'b' for bottom of node; type 'd' to delete this node from list; 'q',<return> accepts current position and clocks in, <escape> skips clocking in; <backspace> proceeds in reverse order, 'm' or 'w' switch to working set menu, C-g returns to initial position")
+  '("; type c,space,d,q,ret,,bs,m,w or ? for short help" .
+"; type 'c' or space to jump to next node in circle; type 'd' to delete this node from list; 'q',<return> accepts current position, <backspace> proceeds in reverse order, 'm' or 'w' switch to working set menu, C-g returns to initial position")
   "Short and long help to be presented in working set circle.")
 
 (defvar org-working-set-menu-keymap
@@ -129,16 +134,9 @@
     (set-keymap-parent keymap org-mode-map)
     (org-working-set--define-keymap
      keymap
-     '((("<return>" "RET") . org-working-set-menu-go--this-win--go-def--clock-in)
-       (("<S-return>") . org-working-set-menu-go--this-win--go-def--no-clock)
-       (("<tab>") . org-working-set-menu-go--other-win--go-def--clock-in)
-       (("<S-tab>") . org-working-set-menu-go--other-win--go-def--no-clock)
-       (("h") . org-working-set-menu-go--this-win--go-head--clock-in)
-       (("H") . org-working-set-menu-go--this-win--go-head--no-clock)
-       (("b") . org-working-set-menu-go--this-win--go-bottom--clock-in)
-       (("B") . org-working-set-menu-go--this-win--go-bottom--no-clock)
+     '((("<return>" "RET") . org-working-set-menu-go--this-win)
+       (("<tab>") . org-working-set-menu-go--other-win)
        (("p") . org-working-set-menu-peek)
-       (("c" "~") . org-working-set-menu-toggle-clock)
        (("d") . org-working-set-menu-delete-entry)
        (("u") . org-working-set-menu-undo)
        (("q") . org-working-set-menu-quit)
@@ -147,8 +145,8 @@
   "Keymap used in working set menu.")
 
 (defvar org-working-set-menu-help-strings
-  '("Press <return>,<S-return>,<tab>,<S-tab>,h,H,b,B,p,d,u,q,r,c,~,* or ? to toggle short help." .
-    "List of working-set nodes. Pressing <return> on a list element jumps to node in other window and deletes this window, <tab> does the same but keeps this window, <S-return> and <S-tab> do not clock, `h' and `b' jump to bottom of node unconditionally (with capital letter in other windows), `p' peeks into node from current line, `d' deletes node from working-set immediately, `u' undoes last delete, `q' aborts and deletes this buffer, `r' rebuilds its content, `c' or `~' toggles clocking. Markers on nodes are: `*' for last visited and `~' do not clock.")
+  '("Press <return>,<tab>,h,H,b,B,p,d,u,q,r,c,~,* or ? to toggle short help." .
+    "List of working-set nodes. Pressing <return> on a list element jumps to node in other window and deletes this window, <tab> does the same but keeps this window, `h' and `b' jump to bottom of node unconditionally (with capital letter in other windows), `p' peeks into node from current line, `d' deletes node from working-set immediately, `u' undoes last delete, `q' aborts and deletes this buffer, `r' rebuilds its content, `c' toggles clocking. Markers on nodes are: `*' for last visited.")
   "Short and long help to be presented in working set menu.")
 
 (defvar org-working-set--menu-keymap nil "Keymap used in working set menu.")
@@ -156,7 +154,7 @@
 (defconst org-working-set--menu-buffer-name "*working-set of org-nodes*" "Name of buffer with list of working-set nodes.")
 
 ;; Version of this package
-(defvar org-working-set-version "1.2.0" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-working-set-version "2.0.0" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 ;; customizable options
 (defgroup org-working-set nil
@@ -169,17 +167,17 @@
   :type 'string
   :group 'org-working-set)
 
-(defcustom org-working-set-clock-into-working-set nil
+(defcustom org-working-set-clock-in nil
   "Clock into nodes of working-set ?"
   :group 'org-working-set
   :type 'boolean)
 
-(defcustom org-working-set-show-working-set-overlay t
+(defcustom org-working-set-show-overlay t
   "Show overlay text when traversing the working-set."
   :group 'org-working-set
   :type 'boolean)
 
-(defcustom org-working-set-goto-bottom-in-working-set nil
+(defcustom org-working-set-goto-bottom nil
   "After visiting a node from the working-set; position cursor at bottom of node (as opposed to heading) ?"
   :group 'org-working-set
   :type 'boolean)
@@ -217,7 +215,7 @@ Remark: Depending on your needs you might also find these packages
 interesting for providing somewhat similar functionality: org-now and
 org-mru-clock.
 
-This is version 1.2.0 of org-working-set.el.
+This is version 2.0.0 of org-working-set.el.
 
 The subcommands allow to:
 - Modify the list of nodes (e.g. add new nodes)
@@ -235,8 +233,7 @@ Optional argument SILENT does not issue final message."
       (with-current-buffer (car bp)
         (save-excursion
           (goto-char (cdr bp))
-          (setq org-working-set--ids (split-string (or (org-entry-get nil "working-set-nodes") "")))
-          (setq org-working-set--ids-do-not-clock (split-string (or (org-entry-get nil "working-set-nodes-do-not-clock") "")))))))
+          (setq org-working-set--ids (split-string (or (org-entry-get nil "working-set-nodes") "")))))))
   
   (let ((char-choices (list ?s ?S ?a ?A ?d ?u ?l ?w ?m ?c ?g ? ??))
         id name text more-text char prompt ids-up-to-top)
@@ -245,7 +242,7 @@ Optional argument SILENT does not issue final message."
     (while (or (not (memq char char-choices))
                (= char ??))
       (setq char (read-char-choice prompt char-choices))
-      (setq prompt (format "Actions on working-set of %d nodes:  s)et working-set to this node alone,  S)et but do not clock,  a)ppend this node to set,  A)ppend but do not clock,  d)elete this node from list,  u)ndo last modification of working set,  l) shows log of entries added,  w),m)enu to edit working set (same as 'w'),  c),space) enter working set circle,  g)o to bottom position in current node.  Please choose - " (length org-working-set--ids))))
+      (setq prompt (format "Actions on working-set of %d nodes:  s)et working-set to this node alone, a)ppend this node to set,  d)elete this node from list,  u)ndo last modification of working set,  l) shows log of entries added,  w),m)enu to edit working set,  c),space) enter working set circle,  g)o to bottom position in current node.  Please choose - " (length org-working-set--ids))))
 
     (when (and (memq char (list ?s ?S ?a ?A ?d))
                (not (string= major-mode "org-mode")))
@@ -254,15 +251,12 @@ Optional argument SILENT does not issue final message."
     (setq text
           (cond
 
-           ((or (eq char ?s)
-                (eq char ?S))
+           ((or (eq char ?s))
             (setq id (org-id-get-create))
             (setq org-working-set--ids-saved org-working-set--ids)
             (setq org-working-set--ids (list id))
-            (if (eq char ?S)
-                (setq org-working-set--ids-do-not-clock (list id))
-              (setq org-working-set--id-last-goto id)
-              (if org-working-set-clock-into-working-set (org-with-limited-levels (org-clock-in))))
+            (setq org-working-set--id-last-goto id)
+            (org-working-set--clock-in-maybe)
             "working-set has been set to current node (1 node)")
 
            ((or (eq char ?a)
@@ -289,14 +283,13 @@ Optional argument SILENT does not issue final message."
                 (setq more-text (concat more-text ", replacing its parent")))
               (setq org-working-set--ids (cons id org-working-set--ids))
               (org-working-set--log-add id name))
-            (if (eq char ?A)
-                (setq org-working-set--ids-do-not-clock (cons id org-working-set--ids-do-not-clock))
-              (setq org-working-set--id-last-goto id)
-              (if org-working-set-clock-into-working-set (org-with-limited-levels (org-clock-in))))
+            (setq org-working-set--id-last-goto id)
+            (org-working-set--clock-in-maybe)
             "current node has been appended to working-set%s (%d node%s)")
 
            ((eq char ?d)
-            (org-working-set--delete-from))
+            (save-excursion
+             (org-working-set--delete-from)))
 
            ((memq char '(?m ?w))
             (org-working-set--menu))
@@ -368,16 +361,12 @@ Optional argument SILENT does not issue final message."
            ;; Clean up overlay
            (if org-working-set--overlay (delete-overlay org-working-set--overlay))
            (setq org-working-set--overlay nil)
-           (if (and org-working-set-clock-into-working-set
-                    (not (member (org-id-get) org-working-set--ids-do-not-clock))
-                    (not org-working-set--circle-bail-out))
-               (let (keys)
-                 ;; save and repeat terminating key, because org-clock-in might read interactively
-                 (if (input-pending-p) (setq keys (read-key-sequence nil)))
-                 (ignore-errors (org-with-limited-levels (org-clock-in)))
-                 (if keys (setq unread-command-events (listify-key-sequence keys)))))
-           (if org-working-set--circle-before-marker (move-marker org-working-set--circle-before-marker nil))
-           (setq org-working-set--circle-bail-out nil))))
+           (let (keys)
+             ;; save and repeat terminating key, because org-clock-in might read interactively
+             (if (input-pending-p) (setq keys (read-key-sequence nil)))
+             (ignore-errors (org-working-set--clock-in-maybe))
+             (if keys (setq unread-command-events (listify-key-sequence keys))))
+           (if org-working-set--circle-before-marker (move-marker org-working-set--circle-before-marker nil)))))
 
   ;; first move
   (org-working-set--message (org-working-set--circle-continue t)))
@@ -409,7 +398,7 @@ Optional argument SILENT does not issue final message."
   "Finish working set circle regularly."
     (interactive)
   (org-working-set--message "Circle done")
-  (org-working-set--circle-finished-helper nil))
+  (org-working-set--circle-finished-helper))
 
 
 (defun org-working-set-circle-head-of-node ()
@@ -445,14 +434,6 @@ Optional argument SILENT does not issue final message."
   (setq org-working-set--cancel-wait-function nil))
 
 
-(defun org-working-set-circle-bail-out ()
-  "Leave working set circle on current node, but do not clock in."
-  (interactive)
-  (if org-working-set-clock-into-working-set
-      (org-working-set--message "Bailing out of circle, no clock in"))
-  (org-working-set--circle-finished-helper t))
-
-
 (defun org-working-set-circle-quit ()
   "Leave working set circle and return to prior node."
   (interactive)
@@ -461,14 +442,13 @@ Optional argument SILENT does not issue final message."
   (if org-working-set--circle-win-config
       (set-window-configuration org-working-set--circle-win-config))
   (message "Quit")
-  (org-working-set--circle-finished-helper nil))
+  (org-working-set--circle-finished-helper))
 
 
-(defun org-working-set--circle-finished-helper (bail-out)
-  "Common steps on finishing of working set circle.  Argument BAIL-OUT, if t, avoids clocking in."
+(defun org-working-set--circle-finished-helper ()
+  "Common steps on finishing of working set circle."
   (if org-working-set--overlay (delete-overlay org-working-set--overlay))
   (setq org-working-set--overlay nil)
-  (setq org-working-set--circle-bail-out bail-out)
   (setq org-working-set--cancel-wait-function nil))
 
 
@@ -503,7 +483,7 @@ Optional argument BACK"
 
     ;; tooltip-overlay to show current heading
     (setq head (org-with-limited-levels (org-get-heading t t t t)))
-    (when org-working-set-show-working-set-overlay
+    (when org-working-set-show-overlay
       (if org-working-set--overlay (delete-overlay org-working-set--overlay))
       (setq org-working-set--overlay (make-overlay (point-at-eol) (point-at-eol)))
       (overlay-put org-working-set--overlay
@@ -528,7 +508,7 @@ Optional argument BACK"
                     "staying below %scurrent")
                    (t
                     (concat "at %s" (if back "previous" "next"))))
-             (if org-working-set-goto-bottom-in-working-set "bottom of " ""))
+             (if org-working-set-goto-bottom "bottom of " ""))
      ;; count of nodes
      (if (cdr org-working-set--ids)
          (format " node (out of %d)" (length org-working-set--ids))
@@ -551,37 +531,17 @@ Optional argument BACK"
 
 
 ;; A series of similar functions to be used in org-working-set-menu-keymap
-(defun org-working-set-menu-go--this-win--go-def--clock-in ()
-  "Go to node specified by line under cursor; variants: go in this win, go to default location, clock in."
-  (interactive) (org-working-set-menu-go nil nil nil nil))
-(defun org-working-set-menu-go--this-win--go-def--no-clock ()
-  "Go to node specified by line under cursor; variants: go in this win, go to default location, do not clock in."
-  (interactive) (org-working-set-menu-go nil nil nil t))
-(defun org-working-set-menu-go--other-win--go-def--clock-in ()
-  "Go to node specified by line under cursor; variants: go in other win, go to default location, clock in."
-  (interactive) (org-working-set-menu-go t nil nil nil))
-(defun org-working-set-menu-go--other-win--go-def--no-clock ()
-  "Go to node specified by line under cursor; variants: go in other win, go to default location, do not clock in."
-  (interactive) (org-working-set-menu-go t nil nil t))
-(defun org-working-set-menu-go--this-win--go-head--clock-in ()
-  "Go to node specified by line under cursor; variants: go in this win, go to head, clock in."
-  (interactive) (org-working-set-menu-go nil t nil nil))
-(defun org-working-set-menu-go--this-win--go-head--no-clock ()
-  "Go to node specified by line under cursor; variants: go in this win, go to head, do not clock in."
-  (interactive) (org-working-set-menu-go nil t nil t))
-(defun org-working-set-menu-go--this-win--go-bottom--clock-in ()
-  "Go to node specified by line under cursor; variants: go in this win, go to bottom, clock in."
-  (interactive) (org-working-set-menu-go nil nil t nil))
-(defun org-working-set-menu-go--this-win--go-bottom--no-clock ()
-  "Go to node specified by line under cursor; variants: go in this win, go to bottom, do not clock in."
-  (interactive) (org-working-set-menu-go nil nil t t))
+(defun org-working-set-menu-go--this-win ()
+  "Go to node specified by line under cursor; variants: go in this win, go to default location."
+  (interactive) (org-working-set-menu-go nil))
+(defun org-working-set-menu-go--other-win ()
+  "Go to node specified by line under cursor; variants: go in other win, go to default location."
+  (interactive) (org-working-set-menu-go t))
 
 
-(defun org-working-set-menu-go (other-win go-bottom go-head no-clock)
+(defun org-working-set-menu-go (other-win)
   "Go to node specified by line under cursor.
-The Boolean arguments OTHER-WIN, GO-BOTTOM, GO-HEAD and NO-CLOCK specify variants of the action."
-  (and go-bottom go-head
-       (error "Internal error, params two and three cannot both be true"))
+The Boolean arguments OTHER-WIN goes to node in other window."
   (let (id)
     (setq id (org-working-set--menu-get-id))
     (if other-win
@@ -592,14 +552,10 @@ The Boolean arguments OTHER-WIN, GO-BOTTOM, GO-HEAD and NO-CLOCK specify variant
       (org-working-set--goto-id id)
       (recenter 1))
     
-    (if (or go-bottom
-            (and (not go-head)
-                 org-working-set-goto-bottom-in-working-set))
+    (if org-working-set-goto-bottom
         (org-working-set--bottom-of-node))
-    (when (and (not no-clock)
-               (not (member id org-working-set--ids-do-not-clock)))
-      (setq org-working-set--id-last-goto id)
-      (if org-working-set-clock-into-working-set (org-with-limited-levels (org-clock-in))))))
+    (setq org-working-set--id-last-goto id)
+    (org-working-set--clock-in-maybe)))
 
 
 (defun org-working-set-menu-peek ()
@@ -611,18 +567,6 @@ The Boolean arguments OTHER-WIN, GO-BOTTOM, GO-HEAD and NO-CLOCK specify variant
       (delete-other-windows)
       (recenter 1)
       (read-char "Peeking into node, any key to return." nil 10))))
-
-
-(defun org-working-set-menu-toggle-clock ()
-  "Toggle clocking for node under cursor."
-  (interactive)
-  (let ((id (org-working-set--menu-get-id)))
-  (setq org-working-set--ids-do-not-clock
-        (if (member id org-working-set--ids-do-not-clock)
-            (delete id org-working-set--ids-do-not-clock)
-          (cons id org-working-set--ids-do-not-clock)))
-  (org-working-set--nodes-persist)
-  (org-working-set-menu-rebuild)))
 
 
 (defun org-working-set-menu-delete-entry ()
@@ -674,26 +618,20 @@ Optional argument RESIZE adjusts window size."
       (insert "\n\n")
       (setq cursor-here (point))
       (if org-working-set--ids
-          (mapconcat (lambda (id)
-                       (let (head)
-                         (save-window-excursion
-                           (save-excursion
-                             (org-id-goto id)
-                             (setq head (concat (substring-no-properties (org-get-heading))
-                                                (propertize (concat " / "
-                                                                    (org-format-outline-path (reverse (org-get-outline-path)) most-positive-fixnum nil " / "))
-                                                            'face 'org-agenda-dimmed-todo-face)))))
-                         (let ((prefix1 " ") (prefix2 " "))
-                           (if (member id org-working-set--ids-do-not-clock)
-                               (setq prefix2 "~"))
-                           (when (eq id org-working-set--id-last-goto)
-                             (setq prefix1 "*"))
-                           (insert (format "%s%s %s" prefix1 prefix2 head)))
-                         (setq lb (line-beginning-position))
-                         (insert "\n")
-                         (put-text-property lb (point) 'org-working-set-id id)))
-                     org-working-set--ids
-                     "\n")
+          (mapc (lambda (id)
+                  (let (heads)
+                    (save-window-excursion
+                      (save-excursion
+                        (org-id-goto id)
+                        (setq heads (concat (substring-no-properties (org-get-heading))
+                                            (propertize (concat " / "
+                                                                (org-format-outline-path (reverse (org-get-outline-path)) most-positive-fixnum nil " / "))
+                                                        'face 'org-agenda-dimmed-todo-face)))))
+                    (insert (format "%s %s" (if (eq id org-working-set--id-last-goto) "*" " ") heads))
+                    (setq lb (line-beginning-position))
+                    (insert "\n")
+                    (put-text-property lb (point) 'org-working-set-id id)))
+                org-working-set--ids)
         (insert "  No nodes in working-set.\n"))
       (goto-char cursor-here)
       (when resize
@@ -719,7 +657,7 @@ Optional argument RESIZE adjusts window size."
     (goto-char (marker-position marker))
     (org-working-set--unfold-buffer)
     (move-marker marker nil)
-    (when org-working-set-goto-bottom-in-working-set
+    (when org-working-set-goto-bottom
       (org-working-set--bottom-of-node))))
 
 
@@ -776,11 +714,8 @@ Optional argument UPCASE modifies the returned message."
   "Write working-set to property."
   (let ((bp (org-working-set--id-bp)))
     (with-current-buffer (car bp)
-      (setq org-working-set--ids-do-not-clock (cl-intersection org-working-set--ids-do-not-clock org-working-set--ids))
       (setq org-working-set--ids (cl-remove-duplicates org-working-set--ids :test (lambda (x y) (string= x y))))
-      (setq org-working-set--ids-do-not-clock (cl-remove-duplicates org-working-set--ids-do-not-clock :test (lambda (x y) (string= x y))))
-      (org-entry-put (cdr bp) "working-set-nodes" (mapconcat #'identity org-working-set--ids " "))
-      (org-entry-put (cdr bp) "working-set-nodes-do-not-clock" (mapconcat #'identity org-working-set--ids-do-not-clock " ")))))
+      (org-entry-put (cdr bp) "working-set-nodes" (mapconcat #'identity org-working-set--ids " ")))))
 
 
 (defun org-working-set--delete-from (&optional id)
@@ -812,15 +747,21 @@ Optional argument ID gives the node to delete."
       ids)))
 
 
+(defun org-working-set--clock-in-maybe ()
+  "Clock into current node if appropriate."
+  (if org-working-set-clock-in
+      (org-with-limited-levels (org-clock-in))))
+
+
 (defun org-working-set--wrap (text)
-  "Wrap TEXT at fill column."
-  (with-temp-buffer
-    (insert text)
-    (fill-region (point-min) (point-max) nil t)
-    (buffer-string)))
+     "Wrap TEXT at fill column."
+     (with-temp-buffer
+       (insert text)
+       (fill-region (point-min) (point-max) nil t)
+       (buffer-string)))
 
 
-(defun org-working-set--unfold-buffer (skip-recenter)
+(defun org-working-set--unfold-buffer (&optional skip-recenter)
   "Helper function to unfold buffer."
   (org-show-context 'tree)
   (org-reveal '(16))

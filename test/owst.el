@@ -63,21 +63,14 @@
   (owst-with-test-setup
     (unwind-protect
 	(progn
-	  (let ((org-working-set-clock-into-working-set nil))
+	  (let ((org-working-set-clock-in nil))
 	    (should (not (org-clock-is-active)))
 	    (owst-goto "eins")
 	    (owst-do "s <down>")
 	    (sleep-for 1)
 	    (should (not (org-clock-is-active)))
 	    
-	    (owst-do "s <down>")
-	    (owst-do "w")
-            (execute-kbd-macro (kbd "<S-return> <down>"))
-	    (sleep-for 1)
-	    (should (not (org-clock-is-active)))
-	    
-	    (setq org-working-set-clock-into-working-set t)
-	    (should (not (org-clock-is-active)))
+	    (setq org-working-set-clock-in t)
 	    (owst-goto "zwei")
 	    (owst-do "s <down>")
 	    (sleep-for 1)
@@ -91,16 +84,6 @@
     (owst-do "y e s <return> a")
     (should org-working-set-id)
     (should (string= org-working-set-id (car org-working-set--ids)))))
-
-
-(ert-deftest owst-test-working-set-do-not-clock ()
-  (owst-with-test-setup
-    (should (not (org-clock-is-active)))
-    (owst-goto "eins")
-    (should (not org-working-set--ids-do-not-clock))
-    (owst-do "S")
-    (should org-working-set--ids-do-not-clock)
-    (should (not (org-clock-is-active)))))
 
 
 (ert-deftest owst-test-working-set-restore ()
@@ -146,16 +129,6 @@
     (should (= (length org-working-set--ids) 2))
     (owst-do "m <down> d q")
     (should (= (length org-working-set--ids) 1))))
-
-
-(ert-deftest owst-test-working-set-menu-toggle-clocking ()
-  (owst-with-test-setup
-    (owst-goto "zwei")
-    (owst-do "s")
-    (owst-do "m ~")
-    (should (looking-at "\\*~"))
-    (execute-kbd-macro (kbd "c"))
-    (should (looking-at "\\* "))))
 
 
 (ert-deftest owst-test-double-working-set ()
