@@ -110,7 +110,7 @@ task :copy_info_pieces do
 
         if line['For Rake: Insert purpose here']
           puts "  Commentary"
-          nfile.puts line + "  \"" + commentary['Purpose'] + "\n\nThis is version #{version} of org-working-set.el."
+          nfile.puts line + "  \"" + commentary['Purpose'] + "\n\nThis is version #{version} of #{cnf['elisp_source']}."
           seen[:purpose] = true
           line = file.gets
           until line.start_with?('This is version')
@@ -165,11 +165,14 @@ task :copy_info_pieces do
   end
 
   version_short = version.sub(/.\d+$/,'')
-  change_log.each_key { |ver|  version_latest = ver if !version_latest || compare_semver(ver,version_latest) > 0}
+  change_log.each_key { |ver| version_latest = ver if !version_latest || compare_semver(ver,version_latest) > 0}
   version_dates[version_latest] = Time.now.strftime("%Y-%m-%d %a")[0..-2]
   version_dates[version_latest_cl] = version_dates[version_latest] if version_latest != version_latest_cl 
   File.open(nname,'w') do |nfile|
     change_log.each do |ver,log|
+      if version_dates[ver].nil?
+        fail "No date known for version #{ver}; ChangeLog.org and cnf['elisp_source'] might not match"
+      end
       nfile.puts "* " + ver + " until " + version_dates[ver] + "\n\n" + log + "\n"
     end
     nfile.puts rest_of_change_log

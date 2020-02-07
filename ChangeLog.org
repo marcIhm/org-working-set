@@ -1,9 +1,17 @@
-* 1.2 until 2020-01-31 Fr
+* 2.0 until 2020-02-07 Fr
 
   - Added a log of working set nodes
   - The node designated by org-working-set-id will be used to store this log
+  - Simplified handling of clocking
+  - Retired property working-set-nodes-do-not-clock
+  - Renamed custom-variable org-working-set-clock-into-working-set into
+    org-working-set-clock-in
+  - Renamed org-working-set-show-working-set-overlay into
+    org-working-set-show-overlay
+  - Renamed org-working-set-goto-bottom-in-working-set into
+    org-working-set-goto-bottom
 
-* 1.1 until 2020-01-31 Fr
+* 1.1 until 2020-02-07 Fr
 
   - Moved functions for working set into its own file
   - Show breadcrumbs in working-set-menu
