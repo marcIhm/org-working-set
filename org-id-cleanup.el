@@ -266,7 +266,7 @@
          (org-save-all-org-buffers)
          (insert "done\nUpdating ids ... ")
          (redisplay)
-         (org-id-update-id-locations)
+         (org-id-update-id-locations org-id-cleanup--extra-files)
          (insert "done\nSaving id locations ...")
          (redisplay)
          (org-id-locations-save)
