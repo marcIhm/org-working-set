@@ -65,6 +65,10 @@
 
 ;;; Change Log:
 
+;;   Version 2.1
+;;
+;;   - Added org-id-cleanup to clean up unreferenced IDs
+;;
 ;;   Version 2.0
 ;;
 ;;   - Added a log of working set nodes
@@ -226,7 +230,7 @@ Optional argument SILENT does not issue final message."
   (interactive)
 
   (unless org-working-set-id
-    (org-working-set--set-id-assistant))
+    (org-working-set--id-assistant))
   
   (unless org-working-set--ids
     (let ((bp (org-working-set--id-bp)))
@@ -779,8 +783,8 @@ Optional argument ID gives the node to delete."
     ret))
 
 
-(defun org-working-set--set-id-assistant ()
-  "Assist the used in choosing a node where the list of working-set nodes can be stored."
+(defun org-working-set--id-assistant ()
+  "Assist the user in choosing a node, where the list of working-set nodes can be stored."
   (let ((assistant-buffer-name "*org working-set assistant*")
         (window-config (current-window-configuration))
         (current-heading (ignore-errors (org-get-heading)))

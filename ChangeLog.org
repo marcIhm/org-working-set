@@ -1,4 +1,8 @@
-* 2.0 until 2020-02-07 Fr
+* 2.1 until 2020-04-13 Mo
+
+  - Added org-id-cleanup to clean up unreferenced IDs
+
+* 2.0 until 2020-04-13 Mo
 
   - Added a log of working set nodes
   - The node designated by org-working-set-id will be used to store this log
