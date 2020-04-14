@@ -118,7 +118,11 @@
      ((eq step 1)
       (insert "\nPlease make sure that you have a backup, if something goes wrong !\nThis assistant cannot do this for you; please come back when done\nand press this ")
       (insert-button "button" 'action
-                     (lambda (btn) (org-id-cleanup--do 2))))
+                     (lambda (btn) (org-id-cleanup--do 2)))
+      (setq pt (point))
+      (insert "\n\nPlease note, that this assistant will only recognize IDs as referenced and will refrain from deleting them, if they appear anywhere within your org-files. But if you use IDs from within your lisp-code, this will not be noticed. However, to protect such IDs it is enough to mention them insert them anywhere within your org-files.")
+      (fill-paragraph)
+      (goto-char pt)) 
 
      ((eq step 2)
       (insert "You need to save all org buffers and update id locations: ")
