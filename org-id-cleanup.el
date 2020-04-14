@@ -50,12 +50,14 @@
 
 (require 'org)
 (require 'button)
+(require 'org-attach)
 
 
-(defvar org-id-cleanup--extra-files nil "List of all files to be scanned while cleaning ids.")
+(defvar org-id-cleanup--extra-files nil "List of extra files to be scanned while cleaning ids.")
 (defvar org-id-cleanup--unref-ids nil "List of IDs not referenced from files.")
 (defvar org-id-cleanup--num-unref-ids 0 "Number of IDs not referenced from files.")
 (defvar org-id-cleanup--num-deleted-ids 0 "Number of IDs deleted.")
+(defvar org-id-cleanup--num-attach 0 "Number of IDs that are referenced by their attachment directory only.")
 (defvar org-id-cleanup--num-all-ids 0 "Number of all IDs.")
 
 
@@ -82,11 +84,12 @@
          (nfiles (length files))
          (scanned 0)
          (queried 0)
+         (attach 0)
          (buna "*Assistant for deleting IDs*")
          (head-of-files "--- start of extra files ---")
          (head-of-ids "--- List of IDs to be deleted ---")
          (sample-uuid (org-id-uuid))
-         pgreporter unref pt pt2)
+         pgreporter unref unref-unattach pt pt2)
 
     (pop-to-buffer-same-window (get-buffer-create buna))
     (setq buffer-read-only nil)
@@ -179,8 +182,10 @@
      
      ((eq step 5)
       (insert (format "Now the relevant %d files will be scanned for IDs.\n\n" nfiles))
+      (insert "Any IDs, that are used for attachment directories will be kept.\n\n")
+      (insert "Scan files for IDs and ")
       (insert-button
-       "Scan files for IDs and continue" 'action
+       "continue" 'action
        (lambda (btn)
          (let (ids)
            (maphash (lambda (k v) (push k ids)) org-id-locations)
@@ -192,15 +197,26 @@
                  (while (search-forward id nil t)
                    (cl-incf (gethash id counters 0)))))
              (progress-reporter-update pgreporter (cl-incf scanned)))
-           (maphash (lambda (k v) (if (eq v 1) (push k unref))) counters)
-           (setq org-id-cleanup--unref-ids unref)
-           (setq org-id-cleanup--num-unref-ids (length unref))
+           ;; keep only IDs, that have appeared only once
+           (maphash (lambda (id count) (if (eq count 1) (push id unref))) counters)
+           ;; keep only IDs, that are not used in attachment dir
+           (dolist (id unref)
+             (let ((pos (org-id-find id)))
+               (with-current-buffer  (find-file-noselect (car pos))
+                 (goto-char (cdr pos))
+                 (if (string= (org-attach-dir-from-id id) (org-attach-dir))
+                     (cl-incf attach)
+                     (push id unref-unattach)))))
+           (setq org-id-cleanup--unref-ids unref-unattach)
+           (setq org-id-cleanup--num-unref-ids (length unref-unattach))
            (setq org-id-cleanup--num-all-ids (length ids))
+           (setq org-id-cleanup--num-attach attach)
            (progress-reporter-done pgreporter)
            (org-id-cleanup--do 6)))))
 
      ((eq step 6)
       (insert (format "Find below the list of IDs (%d out of %d) that will be deleted; pressing TAB on an id will show the respective node.\n" org-id-cleanup--num-unref-ids org-id-cleanup--num-all-ids))
+      (insert (format "%d IDs are not in the list and will be kept, because they have associated attachments.\n\n" org-id-cleanup--num-attach))
       (insert "You may remove IDs from the list as you like to keep them from beeing deleted.\n\n")
       (insert "If satisfied ")
       (insert-button
