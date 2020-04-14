@@ -95,7 +95,7 @@
     (insert "\nThis assistant helps to clean up IDs from your org-files, it tries to remove only IDs, that are not referenced any longer.\n\n")
     
     (when (= step 1)
-      (insert "It operates in steps, and explains what is going to happen in each step; it presents buttons, that when pressed execute the described action and take you to the next step. Pressing a button can be done either with the cursor and the return-key or with the mouse.")
+      (insert "It operates in steps, and explains what is going to happen in each step; it presents buttons, that when pressed execute the described action and take you to the next step. Pressing a button can be done either with the return-key or with the mouse.")
       (fill-paragraph)
       (insert "\n\n"))
     (insert (format "Step %d of 8" step))
@@ -116,13 +116,9 @@
     (cond
 
      ((eq step 1)
-      (insert "\nPlease make sure that you have a backup, if something goes wrong !\nThis assistant cannot do this for you; please come back when done\nand press this ")
+      (insert "\nPlease make sure that you have a backup, if something goes wrong !\nThis assistant cannot do this for you; so please come back when done\nand press this ")
       (insert-button "button" 'action
-                     (lambda (btn) (org-id-cleanup--do 2)))
-      (setq pt (point))
-      (insert "\n\nPlease note, that this assistant will only recognize IDs as referenced and will refrain from deleting them, if they appear anywhere within your org-files. But if you use IDs from within your lisp-code, this will not be noticed. However, to protect such IDs it is enough to mention them insert them anywhere within your org-files.")
-      (fill-paragraph)
-      (goto-char pt)) 
+                     (lambda (btn) (org-id-cleanup--do 2)))) 
 
      ((eq step 2)
       (insert "You need to save all org buffers and update id locations: ")
@@ -134,13 +130,16 @@
          (insert "\n\nSaving buffers ... ")
          (redisplay)
          (org-save-all-org-buffers)
-         (insert "done\nUpdating ids ... ")
+         (insert "done\nUpdating id locations ... ")
          (redisplay)
          (org-id-update-id-locations)         
-         (org-id-cleanup--do 3))))
+         (org-id-cleanup--do 3)))
+      (setq pt (point))
+      (insert "\nThis will not change your org-files yet.")
+      (goto-char pt))
 
      ((or (eq step 3))
-      (insert (format "Complete the list of %d files that might be changed:\n\n" (length files)))
+      (insert (format "Complete the list of %d files that will be scanned and might be changed:\n\n" (length files)))
       (org-id-cleanup--insert-files files)
       (insert "\n\nPlease make sure, that this list is complete in two respects,\ni.e. includes all files that contain:\n\n - Nodes with IDs that will be removed if referenced no longer\n - References and Links to IDs\n\nPlease note: If the list above is incomplete regarding the second respect,\nthis will probably lead to IDs beeing removed, that are still referenced\nfrom a file missing in the list.")
 
@@ -168,11 +167,15 @@
          (org-id-cleanup--do 4))))
 
      ((eq step 4)
-      (insert (format "Review the list of %d files, that might be changed:\n\n" nfiles))
+      (insert (format "Review the list of %d files that will be scanned and might be changed:\n\n" nfiles))
       (org-id-cleanup--insert-files files)
       (insert "\n\nWhen satisfied ")
       (insert-button
-       "continue" 'action (lambda (btn) (org-id-cleanup--do 5))))
+       "continue" 'action (lambda (btn) (org-id-cleanup--do 5)))
+      (setq pt (point))
+      (insert "\n\nPlease note, that this assistant will only recognize IDs as referenced and will refrain from deleting them, if they appear anywhere within your org-files. But if you use IDs from within your lisp-code, this will not be noticed. However, to protect such IDs it is enough to mention them anywhere within your org-files.")
+      (fill-paragraph)
+      (goto-char pt))
      
      ((eq step 5)
       (insert (format "Now the relevant %d files will be scanned for IDs.\n\n" nfiles))
@@ -261,7 +264,7 @@
       (insert (format "Deleted %d IDs (out of %d).\n\n" org-id-cleanup--num-deleted-ids org-id-cleanup--num-all-ids))
       (insert "Finally you should again save all org buffers, update id locations and save them: ")
       (insert-button
-       "Go" 'action
+       "go" 'action
        (lambda (btn)
          (setq buffer-read-only nil)
          (goto-char (point-max))
