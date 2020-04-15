@@ -1,6 +1,6 @@
-* 2.1 until 2020-04-14 Tu
+* 2.1 until 2020-04-15 We
 
-  - Added org-id-cleanup to clean up unreferenced IDs
+  - Added org-id-cleanup to clean up unreferenced IDs without attachments
 
 * 2.0 until 2020-04-13 Mo
 

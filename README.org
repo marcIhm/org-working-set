@@ -6,7 +6,7 @@
 
   Read below for a description.
 
-  The current version is 2.1.5.
+  The current version is 2.1.6.
 
 ** Table of Contents
 
@@ -104,7 +104,7 @@
 
 *** 2.1
 
-    - Added org-id-cleanup to clean up unreferenced IDs
+    - Added org-id-cleanup to clean up unreferenced IDs without attachments
   
 *** 2.0
 
