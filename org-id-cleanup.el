@@ -41,6 +41,11 @@
 
 ;;; Change Log:
 
+;;   Version 1.1
+;;
+;;   - Respecting attachments
+;;   - Refactoring
+;;
 ;;   Version 1.0
 ;;
 ;;   - Initial Version
