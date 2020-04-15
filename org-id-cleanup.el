@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 1.0.0
+;; Version: 1.1.0
 ;; Package-Requires: ((emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -68,7 +68,7 @@
 
 
 
-;; User-visible and overall control
+;; User-visible function and dispatch
 (defun org-id-cleanup ()
   "Find and clean ids that are no longer used, i.e. neither referenced by links nor used for attachments."
   (interactive)
@@ -106,7 +106,10 @@
       (insert "It operates in steps, and explains what is going to happen in each step; it presents buttons, that when pressed execute the described action and take you to the next step. Pressing a button can be done either with the return-key or with the mouse.")
       (fill-paragraph)
       (insert "\n\n"))
-    (insert (format "Step %d of %s" (1+ (org-id-cleanup--step-to-num step)) (length org-id-cleanup--all-steps)))
+    (insert (format "Step %d of %s: %s"
+                    (1+ (org-id-cleanup--step-to-num step))
+                    (length org-id-cleanup--all-steps)
+                    (symbol-name step)))
     (when (> (org-id-cleanup--step-to-num step) 0)
       (insert "   (or back to ")
       (insert-button
