@@ -77,7 +77,7 @@
 
 (defun org-id-cleanup--do (come-from go-to)
   "Do the work for `org-id-cleanup' Argument COME-FROM is previous step or nil, GO-TO the next one or symbol previous or next."
-  (let (step)
+  (let (step pt)
 
     ;; check arguments and compute step
     (if (and come-from
@@ -99,7 +99,14 @@
     (setq buffer-read-only nil)
     (delete-other-windows)
     (erase-buffer)
-    (insert "\nThis assistant helps to clean up IDs from your org-files, it tries to remove only IDs, that are not referenced any longer.\n\n")
+    ;; breadcrumbs
+    (let ((in-past-steps t))
+      (dolist (st org-id-cleanup--all-steps)
+        (insert (propertize (format "%s - " (symbol-name st)) 'face (if in-past-steps nil 'org-agenda-dimmed-todo-face)))
+        (if (eq st step) (setq in-past-steps nil))))
+    (backward-delete-char 3)
+    
+    (insert "\n\nThis assistant helps to clean up IDs from your org-files, it tries to remove only IDs, that are not referenced any longer.\n\n")
 
     ;; common controls
     (when (eq step 'backup)
