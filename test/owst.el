@@ -48,6 +48,7 @@
 (require 'cl-lib)
 (require 'ert)
 
+(defvar owst-ert-work-file (concat temporary-file-directory "owst-ert-work.org"))
 (defvar owst-work-buffer nil)
 
 ;;

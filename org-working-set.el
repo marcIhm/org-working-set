@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 2.1.6
+;; Version: 2.2.0
 ;; Package-Requires: ((emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -65,6 +65,11 @@
 
 ;;; Change Log:
 
+;;   Version 2.2
+;;
+;;   - Moved org-id-cleanup to its own package
+;;   - Improved handling of missing ids in working set
+;;
 ;;   Version 2.1
 ;;
 ;;   - Added org-id-cleanup to clean up unreferenced IDs without attachments
@@ -104,6 +109,7 @@
 (defvar org-working-set--cancel-timer nil "Timer to cancel waiting for key.")
 (defvar org-working-set--overlay nil "Overlay to display name of current working-set node.")
 (defvar org-working-set--short-help-wanted nil "Non-nil, if short help should be displayed in working-set menu.")
+(defvar org-working-set--id-not-found nil "Id of last node not found.")
 
 (defun org-working-set--define-keymap (keymap keylist)
   "Define Keys given by KEYLIST in KEYMAP."
@@ -232,12 +238,7 @@ Optional argument SILENT does not issue final message."
   (unless org-working-set-id
     (org-working-set--id-assistant))
   
-  (unless org-working-set--ids
-    (let ((bp (org-working-set--id-bp)))
-      (with-current-buffer (car bp)
-        (save-excursion
-          (goto-char (cdr bp))
-          (setq org-working-set--ids (split-string (or (org-entry-get nil "working-set-nodes") "")))))))
+  (org-working-set--nodes-from-property-if-unset-or-stale)
   
   (let ((char-choices (list ?s ?S ?a ?A ?d ?u ?l ?w ?m ?c ?g ? ??))
         id name text more-text char prompt ids-up-to-top)
@@ -608,6 +609,7 @@ The Boolean arguments OTHER-WIN goes to node in other window."
 Optional argument RESIZE adjusts window size."
   (interactive)
   (let (cursor-here lb)
+    (org-working-set--nodes-from-property-if-unset-or-stale)
     (with-current-buffer (get-buffer-create org-working-set--menu-buffer-name)
       (set (make-local-variable 'line-move-visual) nil)
       (setq buffer-read-only nil)
@@ -625,12 +627,12 @@ Optional argument RESIZE adjusts window size."
           (mapc (lambda (id)
                   (let (heads)
                     (save-window-excursion
-                      (save-excursion
-                        (org-id-goto id)
-                        (setq heads (concat (substring-no-properties (org-get-heading))
-                                            (propertize (concat " / "
-                                                                (org-format-outline-path (reverse (org-get-outline-path)) most-positive-fixnum nil " / "))
-                                                        'face 'org-agenda-dimmed-todo-face)))))
+                      (setq org-working-set--id-not-found id)
+                      (org-id-goto id)
+                      (setq heads (concat (substring-no-properties (org-get-heading))
+                                          (propertize (concat " / "
+                                                              (org-format-outline-path (reverse (org-get-outline-path)) most-positive-fixnum nil " / "))
+                                                      'face 'org-agenda-dimmed-todo-face))))
                     (insert (format "%s %s" (if (eq id org-working-set--id-last-goto) "*" " ") heads))
                     (setq lb (line-beginning-position))
                     (insert "\n")
@@ -638,6 +640,7 @@ Optional argument RESIZE adjusts window size."
                 org-working-set--ids)
         (insert "  No nodes in working-set.\n"))
       (goto-char cursor-here)
+      (setq org-working-set--id-not-found nil)
       (when resize
         (fit-window-to-buffer (get-buffer-window))
         (enlarge-window 1))
@@ -720,6 +723,23 @@ Optional argument UPCASE modifies the returned message."
     (with-current-buffer (car bp)
       (setq org-working-set--ids (cl-remove-duplicates org-working-set--ids :test (lambda (x y) (string= x y))))
       (org-entry-put (cdr bp) "working-set-nodes" (mapconcat #'identity org-working-set--ids " ")))))
+
+
+(defun org-working-set--nodes-from-property-if-unset-or-stale ()
+  "Read working-set to property if conditions applay."
+    (if (or (not org-working-set--ids)
+            org-working-set--id-not-found)
+        (let ((bp (org-working-set--id-bp)))
+          (with-current-buffer (car bp)
+            (save-excursion
+              (goto-char (cdr bp))
+              (setq org-working-set--ids (split-string (or (org-entry-get nil "working-set-nodes") "")))
+              (when (and (member org-working-set--id-not-found org-working-set--ids)
+                         (yes-or-no-p (message "ID '%s' from property working-set-nodes has not been found previously; should it be removed from the working set ? " org-working-set--id-not-found)))
+                (setq org-working-set--ids-saved org-working-set--ids)
+                (setq org-working-set--ids (delete org-working-set--id-not-found org-working-set--ids))
+                (org-working-set--nodes-persist)))))
+      (setq org-working-set--id-not-found nil)))
 
 
 (defun org-working-set--delete-from (&optional id)
