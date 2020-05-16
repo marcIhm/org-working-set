@@ -117,7 +117,7 @@
     (owst-do "s")
     (owst-goto "eins")
     (owst-do "a")
-    (owst-do "m <down> <return>")
+    (owst-do "m M-< <down> <down> <down> <return>")
     (should (looking-at ".* zwei"))))
 
 
@@ -128,7 +128,7 @@
     (owst-goto "eins")
     (owst-do "a")
     (should (= (length org-working-set--ids) 2))
-    (owst-do "m <down> d q")
+    (owst-do "m d q")
     (should (= (length org-working-set--ids) 1))))
 
 
@@ -157,11 +157,21 @@
 
 (ert-deftest owst-test-log-of-working-set ()
   (owst-with-test-setup
-   (owst-goto "zwei")
-   (owst-do "a")
-   (owst-goto "eins")
-   (org-end-of-meta-data t)
-   (should (looking-at "[[:blank:]]+-"))))
+    (owst-goto "zwei")
+    (owst-do "a")
+    (owst-goto "eins")
+    (org-end-of-meta-data t)
+    (should (looking-at "[[:blank:]]+-"))))
+
+
+(ert-deftest owst-test-when-node-has-gone ()
+  (owst-with-test-setup
+    (owst-goto "zwei")
+    (owst-do "a")
+    (org-delete-property "ID")
+    (ignore-errors
+      (owst-do "w d"))
+    (should (= (length org-working-set--ids) 0))))
 
 
 ;;
@@ -196,8 +206,12 @@
   (org-cycle '(64))
   (delete-other-windows)
   (end-of-buffer)
+  (org-id-update-id-locations)
+  (ignore-errors
+    (kill-buffer org-working-set--menu-buffer-name))
   (setq org-working-set--ids nil)
-  (setq org-working-set--ids-do-not-clock nil))
+  (setq org-working-set--ids-do-not-clock nil)
+  (setq org-working-set--id-not-found nil))
 
 
 (defun owst-teardown-test ()
@@ -247,6 +261,7 @@
 * eins
   :PROPERTIES:
   :ID:       53e15dce-6f28-4674-bd65-e63b516d97ac
+  :working-set-nodes: 
   :END:
 * zwei
   :PROPERTIES:
