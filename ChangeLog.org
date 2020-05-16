@@ -1,4 +1,11 @@
-* 2.1 until 2020-04-15 We
+* 2.2 until 2020-05-16 Sa
+
+  - Moved org-id-cleanup to its own package
+  - Improved handling of missing ids in working set
+  - Refactoring
+  - Fixes
+
+* 2.1 until 2020-05-16 Sa
 
   - Added org-id-cleanup to clean up unreferenced IDs without attachments
 

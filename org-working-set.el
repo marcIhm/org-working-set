@@ -166,7 +166,7 @@
 (defconst org-working-set--menu-buffer-name "*working-set of org-nodes*" "Name of buffer with list of working-set nodes.")
 
 ;; Version of this package
-(defvar org-working-set-version "2.1.6" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-working-set-version "2.2.0" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 ;; customizable options
 (defgroup org-working-set nil
@@ -227,7 +227,7 @@ Remark: Depending on your needs you might also find these packages
 interesting for providing somewhat similar functionality: org-now and
 org-mru-clock.
 
-This is version 2.1.6 of org-working-set.el.
+This is version 2.2.0 of org-working-set.el.
 
 The subcommands allow to:
 - Modify the list of nodes (e.g. add new nodes)
