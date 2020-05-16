@@ -69,6 +69,8 @@
 ;;
 ;;   - Moved org-id-cleanup to its own package
 ;;   - Improved handling of missing ids in working set
+;;   - Refactoring
+;;   - Fixes
 ;;
 ;;   Version 2.1
 ;;
@@ -257,44 +259,14 @@ Optional argument SILENT does not issue final message."
           (cond
 
            ((or (eq char ?s))
-            (setq id (org-id-get-create))
-            (setq org-working-set--ids-saved org-working-set--ids)
-            (setq org-working-set--ids (list id))
-            (setq org-working-set--id-last-goto id)
-            (org-working-set--clock-in-maybe)
-            "working-set has been set to current node (1 node)")
+            (org-working-set--set))
 
            ((or (eq char ?a)
                 (eq char ?A))
-            (setq id (org-id-get-create))
-            (org-with-limited-levels
-             (setq name (org-get-heading t t t t)))
-            (unless (member id org-working-set--ids)
-              ;; remove any children, that are already in working-set
-              (setq org-working-set--ids
-                    (delete nil (mapcar (lambda (x)
-                                          (if (member id (org-with-point-at (org-id-find x t)
-                                                           (org-working-set--ids-up-to-top)))
-                                              (progn
-                                                (setq more-text ", removing its children")
-                                                nil)
-                                            x))
-                                        org-working-set--ids)))
-              (setq org-working-set--ids-saved org-working-set--ids)
-              ;; remove parent, if already in working-set
-              (setq ids-up-to-top (org-working-set--ids-up-to-top))
-              (when (seq-intersection ids-up-to-top org-working-set--ids)
-                (setq org-working-set--ids (seq-difference org-working-set--ids ids-up-to-top))
-                (setq more-text (concat more-text ", replacing its parent")))
-              (setq org-working-set--ids (cons id org-working-set--ids))
-              (org-working-set--log-add id name))
-            (setq org-working-set--id-last-goto id)
-            (org-working-set--clock-in-maybe)
-            "current node has been appended to working-set%s (%d node%s)")
+            (org-working-set--add))
 
            ((eq char ?d)
-            (save-excursion
-             (org-working-set--delete-from)))
+            (org-working-set--delete-from))
 
            ((memq char '(?m ?w))
             (org-working-set--menu))
@@ -312,6 +284,10 @@ Optional argument SILENT does not issue final message."
            ((eq char ?u)
             (org-working-set--nodes-restore))))
 
+    (when (consp text)
+      (setq more-text (cdr text))
+      (setq text (car text)))
+
     (org-working-set--nodes-persist)
     
     (setq text (format text (or more-text "") (length org-working-set--ids) (if (cdr org-working-set--ids) "s" "")))
@@ -322,13 +298,14 @@ Optional argument SILENT does not issue final message."
 (defun org-working-set--log-add (id name)
   "Add entry into log of working-set nodes."
   (let ((bp (org-working-set--id-bp)))
+    (set-buffer (car bp))
     (save-excursion
-      (set-buffer (car bp))
       (goto-char (cdr bp))
       (org-end-of-meta-data t)
       (when (org-at-heading-p)
+	(backward-char) ; needed to make save-excursion work right
         (insert "\n\n")
-        (forward-line -2))
+        (forward-line -1))
       (if (looking-at "^[[:blank:]]*$")
           (forward-line))
       (insert "\n")
@@ -529,16 +506,19 @@ Optional argument BACK"
 
   (setq  org-working-set--short-help-wanted nil)
   (pop-to-buffer org-working-set--menu-buffer-name '((display-buffer-at-bottom)))
-  (org-working-set-menu-rebuild t)
+  (org-working-set-menu-rebuild t t)
 
   (use-local-map org-working-set-menu-keymap)
   "Buffer with nodes of working-set")
 
-
+;;
 ;; A series of similar functions to be used in org-working-set-menu-keymap
+;;
 (defun org-working-set-menu-go--this-win ()
   "Go to node specified by line under cursor; variants: go in this win, go to default location."
   (interactive) (org-working-set-menu-go nil))
+
+
 (defun org-working-set-menu-go--other-win ()
   "Go to node specified by line under cursor; variants: go in other win, go to default location."
   (interactive) (org-working-set-menu-go t))
@@ -553,10 +533,10 @@ The Boolean arguments OTHER-WIN goes to node in other window."
         (progn
           (other-window 1)
           (org-working-set--goto-id id))
-      (delete-window)
+      (if (> (count-windows) 1) (delete-window))
       (org-working-set--goto-id id)
       (recenter 1))
-    
+
     (if org-working-set-goto-bottom
         (org-working-set--bottom-of-node))
     (setq org-working-set--id-last-goto id)
@@ -604,7 +584,12 @@ The Boolean arguments OTHER-WIN goes to node in other window."
   (org-working-set-menu-rebuild t))
 
 
-(defun org-working-set-menu-rebuild (&optional resize)
+(defun org-working-set--advice-for-org-id-update-id-locations (orig-func &rest args)
+  "Advice that moderates use of `org-id-update-id-location' for `org-working-set-menu-rebuild'"
+  (org-working-set--ask-and-handle-stale-id))
+
+
+(defun org-working-set-menu-rebuild (&optional resize go-top)
   "Rebuild content of working-set menu-buffer.
 Optional argument RESIZE adjusts window size."
   (interactive)
@@ -613,6 +598,7 @@ Optional argument RESIZE adjusts window size."
     (with-current-buffer (get-buffer-create org-working-set--menu-buffer-name)
       (set (make-local-variable 'line-move-visual) nil)
       (setq buffer-read-only nil)
+      (setq cursor-here (point))
       (cursor-intangible-mode)
       (erase-buffer)
       (insert (propertize (if org-working-set--short-help-wanted
@@ -622,17 +608,26 @@ Optional argument RESIZE adjusts window size."
                           'cursor-intangible t
                           'front-sticky t))
       (insert "\n\n")
-      (setq cursor-here (point))
+      (if go-top (setq cursor-here (point)))
       (if org-working-set--ids
           (mapc (lambda (id)
-                  (let (heads)
+                  (let (heads olpath)
                     (save-window-excursion
                       (setq org-working-set--id-not-found id)
-                      (org-id-goto id)
+                      ;; org-id-goto may call org-id-update-id-locations, which tends to take long
+                      ;; so we advice it and ask the user if it is worthwhile
+                      (unwind-protect
+                          (progn (advice-add 'org-id-update-id-locations :around #'org-working-set--advice-for-org-id-update-id-locations)
+                                 (org-id-goto id))
+                        (advice-remove 'org-id-update-id-locations #'org-working-set--advice-for-org-id-update-id-locations))
+
+                      (setq olpath (org-format-outline-path
+                                    (reverse (org-get-outline-path)) most-positive-fixnum nil " / "))
                       (setq heads (concat (substring-no-properties (org-get-heading))
-                                          (propertize (concat " / "
-                                                              (org-format-outline-path (reverse (org-get-outline-path)) most-positive-fixnum nil " / "))
-                                                      'face 'org-agenda-dimmed-todo-face))))
+                                          (if (> (length olpath) 0)
+                                              (propertize (concat " / " olpath)
+                                                          'face 'org-agenda-dimmed-todo-face)
+                                            ""))))
                     (insert (format "%s %s" (if (eq id org-working-set--id-last-goto) "*" " ") heads))
                     (setq lb (line-beginning-position))
                     (insert "\n")
@@ -642,8 +637,9 @@ Optional argument RESIZE adjusts window size."
       (goto-char cursor-here)
       (setq org-working-set--id-not-found nil)
       (when resize
-        (fit-window-to-buffer (get-buffer-window))
-        (enlarge-window 1))
+        (ignore-errors
+          (fit-window-to-buffer (get-buffer-window))
+          (enlarge-window 1)))
       (setq buffer-read-only t))))
 
 
@@ -656,7 +652,14 @@ Optional argument RESIZE adjusts window size."
 (defun org-working-set--goto-id (id)
   "Goto node with given ID and unfold."
   (let (marker)
-    (unless (setq marker (org-id-find id 'marker))
+    (setq org-working-set--id-not-found id)
+    (unwind-protect
+        (progn
+          (advice-add 'org-id-update-id-locations :around #'org-working-set--advice-for-org-id-update-id-locations)
+          (setq marker (org-id-find id 'marker)))
+      (advice-remove 'org-id-update-id-locations #'org-working-set--advice-for-org-id-update-id-locations))
+    (setq org-working-set--id-not-found nil)
+    (unless marker
       (setq org-working-set--id-last-goto nil)
       (error "Could not find working-set node with id %s" id))
     
@@ -726,7 +729,7 @@ Optional argument UPCASE modifies the returned message."
 
 
 (defun org-working-set--nodes-from-property-if-unset-or-stale ()
-  "Read working-set to property if conditions applay."
+  "Read working-set to property if conditions apply."
     (if (or (not org-working-set--ids)
             org-working-set--id-not-found)
         (let ((bp (org-working-set--id-bp)))
@@ -734,12 +737,98 @@ Optional argument UPCASE modifies the returned message."
             (save-excursion
               (goto-char (cdr bp))
               (setq org-working-set--ids (split-string (or (org-entry-get nil "working-set-nodes") "")))
-              (when (and (member org-working-set--id-not-found org-working-set--ids)
-                         (yes-or-no-p (message "ID '%s' from property working-set-nodes has not been found previously; should it be removed from the working set ? " org-working-set--id-not-found)))
-                (setq org-working-set--ids-saved org-working-set--ids)
-                (setq org-working-set--ids (delete org-working-set--id-not-found org-working-set--ids))
-                (org-working-set--nodes-persist)))))
+              (when (member org-working-set--id-not-found org-working-set--ids)
+                (org-working-set--ask-and-handle-stale-id)))))
       (setq org-working-set--id-not-found nil)))
+
+
+(defun org-working-set--ask-and-handle-stale-id ()
+  "Ask user about stale ID from working set and handle answer."
+  (let ((char-choices (list ?d ?u ?q))
+        (window-config (current-window-configuration))
+        char prompt)
+
+    (org-working-set--show-explanation
+     "*ID not found*"
+     (format "ERROR: ID %s from working set cannot be found. Please specify how to proceed:\n" org-working-set--id-not-found)
+     "  - d :: delete this ID from the working set"
+     "  - u :: run `org-id-update-id-locations' to rescan your org-files"
+     "  - q :: quit and do nothing"
+     "\nIf unsure, try 'u' first and then 'd'."
+     "In any case the current function will be aborted and you will need to start over.")
+    (unwind-protect
+        (while (not (memq char char-choices))
+          (setq char (read-char-choice "Your choice: " char-choices)))
+      (kill-buffer-and-window)
+      (set-window-configuration window-config))
+
+    (cond
+     ((eq char ?q)
+      (keyboard-quit))
+     ((eq char ?d)
+      (setq org-working-set--ids-saved org-working-set--ids)
+      (setq org-working-set--ids (delete org-working-set--id-not-found org-working-set--ids))
+      (org-working-set--nodes-persist)
+      (setq org-working-set--id-not-found nil)
+      (error "Removed ID %s from working-set; please start over" org-working-set--id-not-found))
+     ((eq char ?u)
+      (message "Updating ID locations")
+      (sit-for 1)
+      (org-id-update-id-locations)
+      (error "Searched all files for ID %s; please start over" org-working-set--id-not-found)))))
+
+
+(defun org-working-set--set ()
+  "Set working-set to current node."
+  (let ((id (org-id-get-create)))
+    (setq org-working-set--ids-saved org-working-set--ids)
+    (setq org-working-set--ids (list id))
+    (setq org-working-set--id-last-goto id)
+    (org-working-set--clock-in-maybe)
+    "working-set has been set to current node (1 node)"))
+
+
+(defun org-working-set--add ()
+  "Add current node to working-set."
+  (let ((more-text "")
+        (id (org-id-get-create)))
+
+    (org-with-limited-levels
+     (setq name (org-get-heading t t t t)))
+
+    (unless (member id org-working-set--ids)
+      (setq org-working-set--ids-saved org-working-set--ids)
+
+      ;; before adding, remove any children of new node, that are already in working-set
+      ;; i.e. remove all nodes from working set that have the new node as any of their parents
+      (setq org-working-set--ids
+            (delete nil (mapcar (lambda (wid)
+                                  (if (member id
+                                              ;; compute all parents of working set node id wid
+                                              (org-with-point-at (org-id-find wid t) 
+                                                (org-working-set--ids-up-to-top))) 
+                                      ;; if new node is parent of a node already in working set
+                                      (progn
+                                        (setq more-text ", removing its children")
+                                        nil) ; do not keep this node from working set
+                                    wid)) ; keep it
+                                org-working-set--ids)))
+
+      ;; remove any parents of new node, that are already in working-set
+      (setq ids-up-to-top (org-working-set--ids-up-to-top))
+      (when (seq-intersection ids-up-to-top org-working-set--ids)
+        (setq org-working-set--ids (seq-difference org-working-set--ids ids-up-to-top))
+        (setq more-text (concat more-text ", replacing its parent")))
+
+      ;; finally add new node to working-set
+      (setq org-working-set--ids (cons id org-working-set--ids))
+      (org-working-set--log-add id name))
+
+    (setq org-working-set--id-last-goto id)
+    (org-working-set--clock-in-maybe)
+    (cons
+     "current node has been appended to working-set%s (%d node%s)"
+     more-text)))
 
 
 (defun org-working-set--delete-from (&optional id)
@@ -803,40 +892,46 @@ Optional argument ID gives the node to delete."
     ret))
 
 
+(defun org-working-set--show-explanation (buffer-name &rest strings)
+  "Show buffer BUFFER-NAME with explanations STRINGS."
+  (pop-to-buffer buffer-name '((display-buffer-at-bottom)) nil)
+  (with-current-buffer buffer-name
+    (erase-buffer)
+    (org-mode)
+    (mapc
+     (lambda (x) (insert x) (org-fill-paragraph) (insert "\n"))
+     strings)
+    (setq mode-line-format nil)
+    (setq buffer-read-only t)
+    (setq cursor-type nil)
+    (fit-window-to-buffer)
+    (enlarge-window 1)
+    (goto-char (point-min))
+    (recenter 0)
+    (setq window-size-fixed 'height)))
+
+
 (defun org-working-set--id-assistant ()
   "Assist the user in choosing a node, where the list of working-set nodes can be stored."
-  (let ((assistant-buffer-name "*org working-set assistant*")
-        (window-config (current-window-configuration))
+  (let ((window-config (current-window-configuration))
         (current-heading (ignore-errors (org-get-heading)))
         use-current-node)
 
-    (pop-to-buffer assistant-buffer-name '((display-buffer-at-bottom)) nil)
-    (with-current-buffer assistant-buffer-name
-      (erase-buffer)
-      (org-mode)
-      (mapc (lambda (x) (insert x) (org-fill-paragraph) (insert "\n"))
-            (list
-             "\nThe required variable `org-working-set-id' has not been set. It should contain the id of an empty node, where org-working-set will store its runtime information. The property drawer will be used to store the ids of the working-set nodes, the body will be populated with an ever-growing list of nodes, that have been added."
-             "\nThere are three ways to set `org-working-set-id':"
-             "- Choose a node and copy the value of its ID-property; use the customize-interface to set `org-working-set-id' to the chosen id."
-             "- As above, but edit your .emacs and insert a setq-clause."
-             (format "- Use the ID of the node the cursor is currently positioned in (which is '%s')." current-heading)
-             "\nIf you choose the first or second way, you should answer 'no' to the question below and go ahead yourself."
-             "\nIf you choose the third way, you should answer 'yes'."
-             (format "\nHowever, if you are not already within the right node, you may answer 'no' to the question below, navigate to the right node and invoke `%s' again." this-command)))
-      (setq mode-line-format nil)
-      (setq buffer-read-only t)
-      (setq cursor-type nil)
-      (fit-window-to-buffer)
-      (enlarge-window 1)
-      (goto-char (point-min))
-      (recenter 0)
-      (setq window-size-fixed 'height)
+    (org-working-set--show-explanation
+     "*org working-set assistant*"
+     "\nThe required variable `org-working-set-id' has not been set. It should contain the id of an empty node, where org-working-set will store its runtime information. The property drawer will be used to store the ids of the working-set nodes, the body will be populated with an ever-growing list of nodes, that have been added."
+     "\nThere are three ways to set `org-working-set-id':"
+     "- Choose a node and copy the value of its ID-property; use the customize-interface to set `org-working-set-id' to the chosen id."
+     "- As above, but edit your .emacs and insert a setq-clause."
+     (format "- Use the ID of the node the cursor is currently positioned in (which is '%s')." current-heading)
+     "\nIf you choose the first or second way, you should answer 'no' to the question below and go ahead yourself."
+     "\nIf you choose the third way, you should answer 'yes'."
+     (format "\nHowever, if you are not already within the right node, you may answer 'no' to the question below, navigate to the right node and invoke `%s' again." this-command))
+    (unwind-protect
+        (setq use-current-node (yes-or-no-p "Do you want to use the id of the current node ? "))
+      (kill-buffer-and-window)
+      (set-window-configuration window-config))
 
-      (unwind-protect
-          (setq use-current-node (yes-or-no-p "Do you want to use the id of the current node ? "))
-        (kill-buffer-and-window)
-        (set-window-configuration window-config)))
 
     (if use-current-node
         (let ((id (org-id-get-create)))
