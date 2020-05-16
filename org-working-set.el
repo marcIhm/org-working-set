@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 2.2.0
+;; Version: 2.2.1
 ;; Package-Requires: ((emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -166,7 +166,7 @@
 (defconst org-working-set--menu-buffer-name "*working-set of org-nodes*" "Name of buffer with list of working-set nodes.")
 
 ;; Version of this package
-(defvar org-working-set-version "2.2.0" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-working-set-version "2.2.1" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 ;; customizable options
 (defgroup org-working-set nil
@@ -175,7 +175,7 @@
   :group 'org)
 
 (defcustom org-working-set-id nil
-  "Id of the Org-mode node, which contains the index table.  This should be set to the id of an empty node. The property drawer will be used to store the ids of the working-set nodes, the body will be populated with an ever-growing list of nodes, that have been added."
+  "Id of the Org-mode node, which contains the index table.  This should be set to the id of an empty node.  The property drawer will be used to store the ids of the working-set nodes, the body will be populated with an ever-growing list of nodes, that have been added."
   :type 'string
   :group 'org-working-set)
 
@@ -227,7 +227,7 @@ Remark: Depending on your needs you might also find these packages
 interesting for providing somewhat similar functionality: org-now and
 org-mru-clock.
 
-This is version 2.2.0 of org-working-set.el.
+This is version 2.2.1 of org-working-set.el.
 
 The subcommands allow to:
 - Modify the list of nodes (e.g. add new nodes)
@@ -243,7 +243,7 @@ Optional argument SILENT does not issue final message."
   (org-working-set--nodes-from-property-if-unset-or-stale)
   
   (let ((char-choices (list ?s ?S ?a ?A ?d ?u ?l ?w ?m ?c ?g ? ??))
-        id name text more-text char prompt ids-up-to-top)
+        text more-text char prompt)
 
     (setq prompt (format "Please specify action on working-set of %d nodes (s,S,a,A,d,u,l,m,w,c,space,g or ? for short help) - " (length org-working-set--ids)))
     (while (or (not (memq char char-choices))
@@ -295,8 +295,9 @@ Optional argument SILENT does not issue final message."
     text))
 
 
-(defun org-working-set--log-add (id name)
-  "Add entry into log of working-set nodes."
+(defun org-working-set--log-add (id title)
+  "Add entry into log of working-set nodes.
+ID and TITLE specify heading to log"
   (let ((bp (org-working-set--id-bp)))
     (set-buffer (car bp))
     (save-excursion
@@ -313,7 +314,7 @@ Optional argument SILENT does not issue final message."
       (org-indent-line) ; works best on empty line
       (insert "- ")
       (org-insert-time-stamp nil t t)
-      (insert (format "    [[id:%s][%s]]" id name)))))
+      (insert (format "    [[id:%s][%s]]" id title)))))
 
 
 (defun org-working-set--log-enter ()
@@ -372,7 +373,7 @@ Optional argument SILENT does not issue final message."
   "Leave working set circle and enter menu."
     (interactive)
   (org-working-set--message "Switching to menu")
-  (org-working-set--circle-finished-helper t)
+  (org-working-set--circle-finished-helper)
   (run-with-timer 0 nil 'org-working-set--menu))
 
 
@@ -584,14 +585,15 @@ The Boolean arguments OTHER-WIN goes to node in other window."
   (org-working-set-menu-rebuild t))
 
 
-(defun org-working-set--advice-for-org-id-update-id-locations (orig-func &rest args)
-  "Advice that moderates use of `org-id-update-id-location' for `org-working-set-menu-rebuild'"
+(defun org-working-set--advice-for-org-id-update-id-locations (_orig-func &rest _args)
+  "Advice that moderates use of `org-id-update-id-location' for `org-working-set-menu-rebuild'."
   (org-working-set--ask-and-handle-stale-id))
 
 
 (defun org-working-set-menu-rebuild (&optional resize go-top)
   "Rebuild content of working-set menu-buffer.
-Optional argument RESIZE adjusts window size."
+Optional argument RESIZE adjusts window size.
+Optional argument GO-TOP goes to top of new window, rather than keeping current position."
   (interactive)
   (let (cursor-here lb)
     (org-working-set--nodes-from-property-if-unset-or-stale)
@@ -746,7 +748,7 @@ Optional argument UPCASE modifies the returned message."
   "Ask user about stale ID from working set and handle answer."
   (let ((char-choices (list ?d ?u ?q))
         (window-config (current-window-configuration))
-        char prompt)
+        char)
 
     (org-working-set--show-explanation
      "*ID not found*"
@@ -805,8 +807,8 @@ Optional argument UPCASE modifies the returned message."
             (delete nil (mapcar (lambda (wid)
                                   (if (member id
                                               ;; compute all parents of working set node id wid
-                                              (org-with-point-at (org-id-find wid t) 
-                                                (org-working-set--ids-up-to-top))) 
+                                              (org-with-point-at (org-id-find wid t)
+                                                (org-working-set--ids-up-to-top)))
                                       ;; if new node is parent of a node already in working set
                                       (progn
                                         (setq more-text ", removing its children")
@@ -875,7 +877,8 @@ Optional argument ID gives the node to delete."
 
 
 (defun org-working-set--unfold-buffer (&optional skip-recenter)
-  "Helper function to unfold buffer."
+  "Helper function to unfold buffer.
+Optional argument SKIP-RECENTER avoids recentering of buffer in window."
   (org-show-context 'tree)
   (org-reveal '(16))
   (unless skip-recenter (recenter 1)))
