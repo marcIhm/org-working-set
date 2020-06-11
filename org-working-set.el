@@ -299,22 +299,18 @@ Optional argument SILENT does not issue final message."
   "Add entry into log of working-set nodes.
 ID and TITLE specify heading to log"
   (let ((bp (org-working-set--id-bp)))
-    (save-excursion
-      (set-buffer (car bp))
-      (goto-char (cdr bp))
-      (org-end-of-meta-data t)
-      (when (org-at-heading-p)
-	(backward-char) ; needed to make save-excursion work right
-        (insert "\n\n")
-        (forward-line -1))
-      (if (looking-at "^[[:blank:]]*$")
-          (forward-line))
-      (insert "\n")
-      (forward-line -1)
-      (org-indent-line) ; works best on empty line
-      (insert "- ")
-      (org-insert-time-stamp nil t t)
-      (insert (format "    [[id:%s][%s]]" id title)))))
+    (with-current-buffer (car bp)
+      (save-excursion
+        (goto-char (cdr bp))
+        (org-end-of-meta-data t)  ; skips over empty lines too
+        (when (org-at-heading-p)  ; no log-line yet
+	  (backward-char) ; needed to make save-excursion do the right thing in our test
+          (insert "\n\n\n")
+          (forward-line -1))
+	(insert (make-string (1+ (org-current-level)) ? )
+		"- ")
+        (org-insert-time-stamp nil t t)
+        (insert (format "    [[id:%s][%s]]\n" id title))))))
 
 
 (defun org-working-set--log-enter ()
