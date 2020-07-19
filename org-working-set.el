@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 2.2.2
+;; Version: 2.3.0
 ;; Package-Requires: ((org "9.2.6") (dash "2.12.0") (s "1.12.0") (emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -174,7 +174,7 @@
        (("c") . org-working-set--dispatch-toggle-clock-in)
        (("l") . org-working-set--dispatch-toggle-land-at-end)
        (("u") . org-working-set--nodes-restore)
-       (("C-g") . keyboard-quit))))
+       (("C-g" "q") . keyboard-quit))))
   "Keymap used for initial dispatch after calling `org-working-set'.")
 
 (defvar org-working-set-circle-keymap
@@ -189,7 +189,7 @@
        (("DEL") . org-working-set--circle-backward)
        (("?") . org-working-set--circle-toggle-help)
        (("d") . org-working-set--circle-delete-current)
-       (("C-g") . org-working-set--circle-quit))))
+       (("C-g" "q") . org-working-set--circle-quit))))
   "Keymap used in working set circle.")
 
 (defvar org-working-set-menu-keymap
@@ -324,7 +324,8 @@ The subcommands allow to:
 (defun org-working-set--add ()
   "Add current node to working-set."
   (let ((more-text "")
-        (id (org-id-get-create)))
+        (id (org-id-get-create))
+        name ids-up-to-top)
 
     (org-with-limited-levels
      (setq name (org-get-heading t t t t)))
@@ -422,8 +423,8 @@ Optional argument UPCASE modifies the returned message."
 (defun org-working-set--dispatch-toggle-land-at-end ()
   "Toggle between landing at head or at and."
   (interactive)
-  (setq org-working-set--land-at-end-curr (not org-working-set--land-at-end-curr)
-        nil))
+  (setq org-working-set--land-at-end-curr (not org-working-set--land-at-end-curr))
+  nil)
 
 
 ;;
@@ -493,7 +494,7 @@ Optional argument UPCASE modifies the returned message."
 (defun org-working-set--circle-done ()
   "Finish working set circle regularly."
     (interactive)
-  (org-working-set--circle-message "Circle done")
+  (org-working-set--circle-message "Circle done." t)
   (org-working-set--circle-finished-helper))
 
 
@@ -529,7 +530,7 @@ Optional argument UPCASE modifies the returned message."
 
 (defun org-working-set--circle-finished-helper ()
   "Common steps on finishing of working set circle."
-  (org-working-set--put-tooltip-overlay)
+  (org-working-set--remove-tooltip-overlay)
   (setq org-working-set--cancel-wait-function nil))
 
 
@@ -537,7 +538,7 @@ Optional argument UPCASE modifies the returned message."
   "Continue with working set circle after start.
 Optional argument STAY prevents changing location.
 Optional argument BACK"
-  (let (last-id following-id previous-id target-id parent-ids head)
+  (let (last-id following-id previous-id target-id parent-ids)
 
     ;; compute target
     (setq last-id (or org-working-set--id-last-goto
@@ -578,7 +579,7 @@ Optional argument BACK"
              (if org-working-set--land-at-end-curr "end of " ""))
      ;; count of nodes
      (if (cdr org-working-set--ids)
-         (format " node (out of %d); type " (length org-working-set--ids))
+         (format " node (%s); type " (org-working-set--out-of-clause target-id))
        (format " single node; type "))
      ;; help text
      (if org-working-set--short-help-wanted
@@ -586,11 +587,13 @@ Optional argument BACK"
        (car org-working-set--circle-help-strings)))))
 
 
-(defun org-working-set--circle-message (message)
+(defun org-working-set--circle-message (message &optional plain)
   "Issue given MESSAGE and append string '(again)' if appropriate."
   (let ((again (if (string= message org-working-set--last-message) " (again)" "")))
     (setq org-working-set--last-message message)
-    (message (concat message again (org-working-set--switches-text) " - "))))
+    (if plain
+        (message message)
+      (message (concat message again (org-working-set--switches-text) " - ")))))
 
 
 ;;
@@ -968,7 +971,7 @@ Optional argument SKIP-RECENTER avoids recentering of buffer in window."
                                 (cdr (car (list keymap))))))) ; direct key-definitionss come after an initial symbol 'keymap
     (setq short (concat
                  (s-join ","
-                         (-remove (lambda (x) (member x '("?" "C-g" "<tab>")))
+                         (-remove (lambda (x) (member x '("?" "C-g" "q" "<tab>")))
                                   (mapcar
                                    (lambda (def-key) (single-key-description (cdr def-key)))
                                    direct-keys)))
@@ -1027,17 +1030,21 @@ ID and TITLE specify heading to log"
     (setq head (org-with-limited-levels (org-get-heading t t t t)))
     (when org-working-set--land-at-end-curr
       (if org-working-set--overlay (delete-overlay org-working-set--overlay))
-      (setq org-working-set--overlay (make-overlay (point-at-eol) (point-at-eol)))
+      (setq org-working-set--overlay (make-overlay (point-at-bol) (point-at-bol)))
       (overlay-put org-working-set--overlay
                    'after-string
                    (propertize
-                    (format " %s (%d of %d) "
-                            head
-                            (1+ (- (length org-working-set--ids)
-                                   (length (member (org-id-get) org-working-set--ids))))
-                            (length org-working-set--ids))
+                    (format " %s (%s) " head (org-working-set--out-of-clause (org-id-get)))
                     'face 'match))
       (overlay-put org-working-set--overlay 'priority most-positive-fixnum))))
+
+
+(defun org-working-set--out-of-clause (id)
+  "Create string describing position in working set."
+  (format "%d of %d"
+          (1+ (- (length org-working-set--ids)
+                 (length (member id org-working-set--ids))))
+          (length org-working-set--ids)))
 
 
 (defun org-working-set--remove-tooltip-overlay ()

@@ -103,11 +103,11 @@
     (owst-goto "drei")
     (owst-do "s")
     (beginning-of-buffer)
-    (owst-do "SPC b")
+    (owst-do "TAB l")
     (forward-line)
     (should (looking-at ".* vier"))
     (beginning-of-buffer)
-    (owst-do "SPC h")
+    (owst-do "TAB q")
     (should (looking-at ".* drei"))))
 
 
@@ -117,7 +117,7 @@
     (owst-do "s")
     (owst-goto "eins")
     (owst-do "a")
-    (owst-do "m M-< <down> <down> <down> <return>")
+    (owst-do "SPC <down> <return>")
     (should (looking-at ".* zwei"))))
 
 
@@ -138,11 +138,11 @@
     (owst-do "s")
     (owst-goto "eins")
     (owst-do "a")
-    (owst-do "SPC SPC")
+    (owst-do "TAB TAB")
     (should (looking-at ".* zwei"))
-    (owst-do "SPC")
+    (owst-do "TAB")
     (should (looking-at ".* zwei"))
-    (owst-do "SPC SPC")
+    (owst-do "TAB TAB")
     (should (looking-at ".* eins"))))
 
 
@@ -170,7 +170,7 @@
     (owst-do "a")
     (org-delete-property "ID")
     (ignore-errors
-      (owst-do "w d"))
+      (owst-do "SPC d"))
     (should (= (length org-working-set--ids) 0))))
 
 
