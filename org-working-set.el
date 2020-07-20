@@ -109,10 +109,8 @@
 (require 'dash)
 (require 's)
 
-
-;;
-;; customizable options
-;;
+
+;;; customizable options
 
 (defgroup org-working-set nil
   "Options concerning the working-set of org-nodes; see `org-working-set' for details."
@@ -134,10 +132,8 @@
   :group 'org-working-set
   :type 'boolean)
 
-
-;;
-;; Variables
-;;
+
+;;; Variables
 
 (defvar org-working-set--ids nil "Ids of working-set nodes (if any).")
 (defvar org-working-set--ids-saved nil "Backup for ‘org-working-set--ids’.")
@@ -145,7 +141,7 @@
 (defvar org-working-set--circle-before-marker nil "Marker for position before entry into circle.")
 (defvar org-working-set--circle-win-config nil "Window configuration before entry into circle.")
 (defvar org-working-set--last-message nil "Last message issued by working-set commands.")
-(defvar org-working-set--cancel-wait-function nil "Function to call on timeout for working-set commands.")
+(defvar org-working-set--circle-cancel-transient-function nil "Function to end circle.")
 (defvar org-working-set--cancel-timer nil "Timer to cancel waiting for key.")
 (defvar org-working-set--overlay nil "Overlay to display name of current working-set node.")
 (defvar org-working-set--short-help-wanted nil "Non-nil, if short help should be displayed in working-set menu.")
@@ -218,12 +214,10 @@
 (defconst org-working-set--menu-buffer-name "*working-set of org-nodes*" "Name of buffer with list of working-set nodes.")
 
 ;; Version of this package
-(defvar org-working-set-version "2.2.2" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-working-set-version "2.3.0" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
-
-;;
-;; The central dispatch function
-;;
+
+;;; The central dispatch function
 
 (defun org-working-set ()
   ;; Do NOT edit the part of this help-text before version number. It will
@@ -257,7 +251,7 @@ Remark: Depending on your needs you might also find these packages
 interesting for providing somewhat similar functionality: org-now and
 org-mru-clock.
 
-This is version 2.2.2 of org-working-set.el.
+This is version 2.3.0 of org-working-set.el.
 
 The subcommands allow to:
 - Modify the list of nodes (e.g. add new nodes)
@@ -291,8 +285,10 @@ The subcommands allow to:
                     (org-working-set--switches-text)
                     " - ")))
         (setq def (lookup-key org-working-set-dispatch-keymap key))
-        (unless def
+        (when (or (not def)
+                (numberp def))
           (message "Invalid key: %s" key)
+          (setq def nil)
           (sit-for 1)))
 
       (setq text (funcall def)))
@@ -306,10 +302,8 @@ The subcommands allow to:
     (setq text (format text (or more-text "") (length org-working-set--ids) (if (cdr org-working-set--ids) "s" "")))
     (message (concat (upcase (substring text 0 1)) (substring text 1)))))
 
-
-;;
-;; Smaller functions directly available from dispatch; circle and menu see further down
-;;
+
+;;; Smaller functions directly available from dispatch; circle and menu see further down
 
 (defun org-working-set--set ()
   "Set working-set to current node."
@@ -391,7 +385,7 @@ Optional argument ID gives the node to delete."
 
 
 (defun org-working-set--dispatch-toggle-help ()
-  "Show help within dispatch."
+  "Show help."
   (interactive)
   (setq org-working-set--short-help-wanted
         (not org-working-set--short-help-wanted))
@@ -421,15 +415,13 @@ Optional argument UPCASE modifies the returned message."
 
 
 (defun org-working-set--dispatch-toggle-land-at-end ()
-  "Toggle between landing at head or at and."
+  "Toggle between landing at head or end."
   (interactive)
   (setq org-working-set--land-at-end-curr (not org-working-set--land-at-end-curr))
   nil)
 
-
-;;
-;; Functions for the working set circle
-;;
+
+;;; Functions for the working set circle
 
 (defun org-working-set--circle-start ()
   "Go through working-set, one node after the other."
@@ -442,11 +434,13 @@ Optional argument UPCASE modifies the returned message."
   (setq org-working-set--circle-before-marker (point-marker))
   (setq org-working-set--circle-win-config (current-window-configuration))
 
-  (setq org-working-set--cancel-wait-function
+  (setq org-working-set--circle-cancel-transient-function
         (set-transient-map
          org-working-set-circle-keymap t
          ;; this is run (in any case) on leaving the map
-         (lambda () (cancel-timer org-working-set--cancel-timer)
+         (lambda ()
+           (if org-working-set--cancel-timer
+               (cancel-timer org-working-set--cancel-timer))
            (message nil)
            (org-working-set--remove-tooltip-overlay)
            (let (keys)
@@ -454,21 +448,23 @@ Optional argument UPCASE modifies the returned message."
              (if (input-pending-p) (setq keys (read-key-sequence nil)))
              (ignore-errors (org-working-set--clock-in-maybe))
              (if keys (setq unread-command-events (listify-key-sequence keys))))
-           (if org-working-set--circle-before-marker (move-marker org-working-set--circle-before-marker nil)))))
+           (when org-working-set--circle-before-marker
+             (move-marker org-working-set--circle-before-marker nil)
+             (setq org-working-set--circle-before-marker nil)))))
 
   ;; first move
   (org-working-set--circle-message (org-working-set--circle-continue t)))
 
 
 (defun org-working-set--circle-forward ()
-  "Move forward in working set circle."
+  "Move forward."
     (interactive)
   (setq this-command last-command)
   (org-working-set--circle-message (org-working-set--circle-continue)))
 
 
 (defun org-working-set--circle-backward ()
-  "Move backward in working set circle."
+  "Move backward."
   (interactive)
   (setq this-command last-command)
   (org-working-set--circle-message (org-working-set--circle-continue nil t)))
@@ -482,7 +478,7 @@ Optional argument UPCASE modifies the returned message."
 
 
 (defun org-working-set--circle-toggle-land-at-end ()
-  "Toggle landing at head or at end."
+  "Toggle between landing at head or end."
   (interactive)
   (setq org-working-set--land-at-end-curr (not org-working-set--land-at-end-curr))
   (if org-working-set--land-at-end-curr
@@ -492,46 +488,41 @@ Optional argument UPCASE modifies the returned message."
 
 
 (defun org-working-set--circle-done ()
-  "Finish working set circle regularly."
+  "Finish regularly."
     (interactive)
-  (org-working-set--circle-message "Circle done." t)
-  (org-working-set--circle-finished-helper))
+    (org-working-set--circle-message "Circle done." t)
+    (org-working-set--remove-tooltip-overlay))
 
 
 (defun org-working-set--circle-toggle-help ()
-  "Show help within working set circle."
+  "Show help."
   (interactive)
   (setq org-working-set--short-help-wanted
         (not org-working-set--short-help-wanted))
-  (message (org-working-set--circle-continue t))
-  (setq org-working-set--cancel-wait-function nil))
+  (message (org-working-set--circle-continue t)))
 
 
 (defun org-working-set--circle-delete-current ()
-  "Delete current entry from working set circle."
+  "Delete current entry."
   (interactive)
   (setq this-command last-command)
   (org-working-set--nodes-persist)
   (org-working-set--circle-message (concat (org-working-set--delete-from) " "
-                                    (org-working-set--circle-continue)))
-  (setq org-working-set--cancel-wait-function nil))
+                                    (org-working-set--circle-continue))))
 
 
 (defun org-working-set--circle-quit ()
-  "Leave working set circle and return to prior node."
+  "Leave circle and return to prior node."
   (interactive)
-  (if org-working-set--circle-before-marker
-      (org-goto-marker-or-bmk org-working-set--circle-before-marker))
-  (if org-working-set--circle-win-config
-      (set-window-configuration org-working-set--circle-win-config))
-  (message "Quit")
-  (org-working-set--circle-finished-helper))
-
-
-(defun org-working-set--circle-finished-helper ()
-  "Common steps on finishing of working set circle."
+  (if org-working-set--circle-before-marker ; proper cleanup of marker will happen in cancel-wait timer
+    (org-goto-marker-or-bmk org-working-set--circle-before-marker))
+  (when org-working-set--circle-win-config
+    (set-window-configuration org-working-set--circle-win-config)
+    (setq org-working-set--circle-win-config nil))
   (org-working-set--remove-tooltip-overlay)
-  (setq org-working-set--cancel-wait-function nil))
+  (message "Quit")
+  (if org-working-set--circle-cancel-transient-function
+      (funcall org-working-set--circle-cancel-transient-function)))
 
 
 (defun org-working-set--circle-continue (&optional stay back)
@@ -554,11 +545,12 @@ Optional argument BACK"
     (setq parent-ids (org-working-set--ids-up-to-top)) ; remember this before changing location
     
     ;; bail out on inactivity
-    (if org-working-set--cancel-timer (cancel-timer org-working-set--cancel-timer))
+    (if org-working-set--cancel-timer
+        (cancel-timer org-working-set--cancel-timer))
     (setq org-working-set--cancel-timer
           (run-at-time 30 nil
-                       (lambda () (if org-working-set--cancel-wait-function
-                                 (funcall org-working-set--cancel-wait-function)))))
+                       (lambda () (if org-working-set--circle-cancel-transient-function
+                                 (funcall org-working-set--circle-cancel-transient-function)))))
 
     (org-working-set--goto-id target-id)
     (setq org-working-set--id-last-goto target-id)
@@ -595,10 +587,8 @@ Optional argument BACK"
         (message message)
       (message (concat message again (org-working-set--switches-text) " - ")))))
 
-
-;;
-;; Functions for the working set menu
-;;
+
+;;; Functions for the working set menu
 
 (defun org-working-set--menu ()
   "Show menu to let user choose among and manipulate list of working-set nodes."
@@ -615,13 +605,15 @@ Optional argument BACK"
 
 
 (defun org-working-set-menu-go--this-win ()
-  "Go to node specified by line under cursor; variants: go in this win, go to default location."
-  (interactive) (org-working-set-menu-go nil))
+  "Go to node specified by line under cursor in this window."
+  (interactive)
+  (org-working-set-menu-go nil))
 
 
 (defun org-working-set-menu-go--other-win ()
-  "Go to node specified by line under cursor; variants: go in other win, go to default location."
-  (interactive) (org-working-set-menu-go t))
+  "Go to node specified by line under cursor in other window."
+  (interactive)
+  (org-working-set-menu-go t))
 
 
 (defun org-working-set-menu-go (other-win)
@@ -671,14 +663,14 @@ The Boolean arguments OTHER-WIN goes to node in other window."
 
 
 (defun org-working-set--menu-quit ()
-  "Quit working set menu."
+  "Quit menu."
   (interactive)
   (delete-windows-on org-working-set--menu-buffer-name)
   (kill-buffer org-working-set--menu-buffer-name))
 
 
 (defun org-working-set--menu-toggle-help ()
-  "Toggle between long and short help in working set menu."
+  "Show help."
   (interactive)
   (setq org-working-set--short-help-wanted
         (not org-working-set--short-help-wanted))
@@ -705,7 +697,7 @@ The Boolean arguments OTHER-WIN goes to node in other window."
 
 
 (defun org-working-set--menu-rebuild (&optional resize go-top)
-  "Rebuild content of working-set menu-buffer.
+  "Rebuild content of menu-buffer.
 Optional argument RESIZE adjusts window size.
 Optional argument GO-TOP goes to top of new window, rather than keeping current position."
   (interactive)
@@ -769,10 +761,8 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
   (or (get-text-property (point) 'org-working-set-id)
       (error "This line does not point to a node from working-set")))
 
-
-;;
-;; General helper functions
-;;
+
+;;; General helper functions
 
 (defun org-working-set--switches-text ()
   "Make text showing state of switches"
@@ -1053,10 +1043,11 @@ ID and TITLE specify heading to log"
       (delete-overlay org-working-set--overlay))
   (setq org-working-set--overlay nil))
 
+
 (provide 'org-working-set)
 
 ;; Local Variables:
-;; fill-column: 75
+;; fill-column: 95
 ;; comment-column: 50
 ;; End:
 

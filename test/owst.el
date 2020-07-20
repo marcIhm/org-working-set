@@ -98,15 +98,21 @@
     (should (= (length org-working-set--ids) 1))))
 
 
-(ert-deftest owst-test-working-set-bottom-head ()
+(ert-deftest owst-test-working-set-goto-end ()
   (owst-with-test-setup
     (owst-goto "drei")
     (owst-do "s")
     (beginning-of-buffer)
     (owst-do "TAB l")
     (forward-line)
-    (should (looking-at ".* vier"))
-    (beginning-of-buffer)
+    (should (looking-at ".* vier"))))
+
+
+(ert-deftest owst-test-working-set-return-after-quit ()
+  (owst-with-test-setup
+    (owst-goto "zwei")
+    (owst-do "s")
+    (owst-goto "drei")
     (owst-do "TAB q")
     (should (looking-at ".* drei"))))
 

@@ -6,7 +6,7 @@
 
   Read below for a description.
 
-  The current version is 2.2.2.
+  The current version is 2.3.0.
 
 ** Table of Contents
 
@@ -102,6 +102,12 @@
 
    See ChangeLog.org for older notes.
 
+*** 2.3
+
+    - Renamed 'log of working-set nodes' into 'journal'
+    - Create org-working-set-dispatch-keymap for easier customization
+    - In-prompt display of some settings
+  
 *** 2.2
 
     - Moved org-id-cleanup to its own package
