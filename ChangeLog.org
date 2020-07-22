@@ -1,8 +1,10 @@
-* 2.3 until 2020-07-20 Mo
+* 2.3 until 2020-07-22 We
 
   - Renamed 'log of working-set nodes' into 'journal'
   - Create org-working-set-dispatch-keymap for easier customization
-  - In-prompt display of some settings
+  - Reorganized keys (but you may change it if you like)
+  - In-prompt display of settings for clock-in and land-at
+  - Added a 'Fictional User-Story' to the documentation
 
 * 2.2 until 2020-07-20 Mo
 

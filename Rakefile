@@ -76,8 +76,7 @@ task :copy_info_pieces do
       commentary[key].sub!(/\A(\s*\n)+/,'')
       commentary[key].sub!(/(\s*\n)+\Z/,'')
     end
-    fail "Invalid set of keys #{commentary.keys}" unless commentary.keys.eql?(cnf['valid_keys'])
-
+    fail "Invalid set of keys #{commentary.keys} not #{cnf['valid_keys']}" unless commentary.keys.eql?(cnf['valid_keys'])
     puts "  Latest Change Log"
     vkey = nil
     line = file.gets until line.start_with?(";;; Change Log:")
@@ -110,7 +109,11 @@ task :copy_info_pieces do
 
         if line['For Rake: Insert purpose here']
           puts "  Commentary"
-          nfile.puts line + "  \"" + commentary['Purpose'] + "\n\nThis is version #{version} of #{cnf['elisp_source']}."
+          nfile.write line + "  \"" + commentary['Purpose']
+          if commentary['Fictional User-Story']
+            nfile.write "\n\nFictional User-Story:\n\n" + commentary['Fictional User-Story']
+          end
+          nfile.write "\n\nThis is version #{version} of #{cnf['elisp_source']}.\n\n"
           seen[:purpose] = true
           line = file.gets
           until line.start_with?('This is version')

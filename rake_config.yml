@@ -3,5 +3,6 @@ package_name: org-working-set
 copy_changelog: false
 valid_keys:
   - Purpose
+  - Fictional User-Story
   - Setup
   

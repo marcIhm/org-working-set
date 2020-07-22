@@ -1,10 +1,10 @@
-;;; org-working-set.el --- Manage a working-set of org-nodes  -*- lexical-binding: t; -*-
+;;; org-working-set.el --- Manage and visit a small set of org-nodes.  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2019-2020 Free Software Foundation, Inc.
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 2.3.0
+;; Version: 2.3.1
 ;; Package-Requires: ((org "9.2.6") (dash "2.12.0") (s "1.12.0") (emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -30,37 +30,79 @@
 
 ;; Purpose:
 ;;
-;;  Maintain a small and changing subset of your org-nodes to visit with ease.
+;;  Manage a small subset of org-nodes to visit them with ease.
 ;;
-;;  The working-set is a small set of nodes, among which you can switch
-;;  rapidly; it is expected to change on a daily or even hourly basis.  Put
-;;  nodes into your working set in order to return easily after any
-;;  interruption.
+;;  On a busy day org-working-set allows to jump quickly between the nodes
+;;  associated with different tasks. It provides an answer to the question:
+;;  What have I been doing before beeing interrupted in the middle of an
+;;  interruption ?
+;;
+;;  The working-set is a small set of nodes; you may add nodes (which
+;;  means: their ids) to your working-set, if you want to visit them
+;;  frequently; the node visited last is called the current node. The
+;;  working-set is volatile and expected to change each day or even hour.
 ;;
 ;;  Once you have added nodes to your working set, there are two ways to
-;;  traverse them (both are accessible through the central function
-;;  `org-working-set'): cycling through your working set is the quickest
-;;  way to return to the current node or go to others; alternatively,
-;;  invoking the working set menu allows for better control but may require
-;;  more keystrokes.
+;;  traverse them (both accessible through the central function
+;;  `org-working-set'): circling through your working set is the quickest
+;;  way to return to the current node or visit others; alternatively, the
+;;  working-set menu produces a editable list of all working-set nodes,
+;;  allowing visits too.
 ;;  
 ;;  Please note, that org-working-set adds an id-property to all nodes in
-;;  the working-set.
+;;  the working-set; but it does not move or change the nodes in any other
+;;  way.
 ;;
 ;;  The list of ids from the nodes of your working-set is stored within the
 ;;  property-drawer of a distinguished node specified via
-;;  `org-working-set-id'; this can be any node you choose and is itself not
-;;  part of the working-set.
+;;  `org-working-set-id'; this node will also collect an ever-growing
+;;  journal of nodes added to the working-set, which may serve as a
+;;  reference later.
 ;;
-;;  Remark: Depending on your needs you might also find these packages
-;;  interesting for providing somewhat similar functionality: org-now and
+;;  Remark: Depending on your needs you might find these packages
+;;  interesting too as they provide similar functionality: org-now and
 ;;  org-mru-clock.
+;;
+;;
+;; Fictional User-Story:
+;;
+;;  Assume, you come into the office in the morning and start your emacs
+;;  with org-mode, because you keep all your notes in org. Yesterday
+;;  evening you only worked within the org-node 'Feature Request';
+;;  therefore your working-set only contains this node (which means: its
+;;  id).
+;;
+;;  So, you invoke the working-set menu (or even quicker, the circle) and
+;;  jump to the node 'Feature Request' where you continue to work. Short
+;;  after that, your Boss asks for an urgent status-report. You immediately
+;;  stop work on 'Feature Request' and find your way to the neglected node
+;;  'Status Report', The working set cannot help you to find this node
+;;  initially, but then you add it for quicker access from now on. Your
+;;  working set now contains two nodes.
+;;
+;;  Next you attend your scrum-meeting, which means you open the node
+;;  'Daily Scrum'. You add it to your working set, because you expect to
+;;  make short excursions to other nodes and want to come back quickly.
+;;  After the meeting you remove its node from your working set and
+;;  continue to work on 'Status Report', which you find through your
+;;  working-set quickly.
+;;
+;;  When done with the report you have a look at your agenda, and realize
+;;  that 'Organize Team-Event' is scheduled for today. So you decide to add
+;;  it to your working-set (in case you get interrupted by a phone call)
+;;  and start to work on this for an hour or so. The rest of the day passes
+;;  like this with work, interruptions and task-switches.
+;;  
+;;  If this sounds like your typical work-day, you might indeed benefit
+;;  from org-working-set.
+;;  
 ;;
 ;; Setup:
 ;;
 ;;  - org-working-set can be installed with package.el
-;;  - Invoke `org-working-set', it will explain and assist you to set the
+;;  - Invoke `org-working-set', it will explain and assist in setting the
 ;;    customizable variable `org-working-set-id'
+;;  - Optional: Bind `org-working-set' to a key, e.g. C-c w
 ;;
 
 ;;; Change Log:
@@ -69,7 +111,9 @@
 ;;
 ;;   - Renamed 'log of working-set nodes' into 'journal'
 ;;   - Create org-working-set-dispatch-keymap for easier customization
-;;   - In-prompt display of some settings
+;;   - Reorganized keys (but you may change it if you like)
+;;   - In-prompt display of settings for clock-in and land-at
+;;   - Added a 'Fictional User-Story' to the documentation
 ;;
 ;;   Version 2.2
 ;;
@@ -118,7 +162,7 @@
   :group 'org)
 
 (defcustom org-working-set-id nil
-  "Id of the Org-mode node, which contains the index table.  This should be set to the id of an empty node.  The property drawer will be used to store the ids of the working-set nodes, the body will be populated with an ever-growing list of nodes, that have been added."
+  "Id of the org-node for the working-set; should be empty initially.  The property drawer will be used to store the ids of the working-set nodes, the body will be populated with an ever-growing list of nodes, that have been added."
   :group 'org-working-set
   :type 'string)
 
@@ -214,7 +258,7 @@
 (defconst org-working-set--menu-buffer-name "*working-set of org-nodes*" "Name of buffer with list of working-set nodes.")
 
 ;; Version of this package
-(defvar org-working-set-version "2.3.0" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-working-set-version "2.3.1" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 
 ;;; The central dispatch function
@@ -225,38 +269,80 @@
   ;; Editing after version number is fine.
   ;;
   ;; For Rake: Insert purpose here
-  "Maintain a small and changing subset of your org-nodes to visit with ease.
+  "Manage a small subset of org-nodes to visit them with ease.
 
-The working-set is a small set of nodes, among which you can switch
-rapidly; it is expected to change on a daily or even hourly basis.  Put
-nodes into your working set in order to return easily after any
-interruption.
+On a busy day org-working-set allows to jump quickly between the nodes
+associated with different tasks. It provides an answer to the question:
+What have I been doing before beeing interrupted in the middle of an
+interruption ?
+
+The working-set is a small set of nodes; you may add nodes (which
+means: their ids) to your working-set, if you want to visit them
+frequently; the node visited last is called the current node. The
+working-set is volatile and expected to change each day or even hour.
 
 Once you have added nodes to your working set, there are two ways to
-traverse them (both are accessible through the central function
-`org-working-set'): cycling through your working set is the quickest
-way to return to the current node or go to others; alternatively,
-invoking the working set menu allows for better control but may require
-more keystrokes.
+traverse them (both accessible through the central function
+`org-working-set'): circling through your working set is the quickest
+way to return to the current node or visit others; alternatively, the
+working-set menu produces a editable list of all working-set nodes,
+allowing visits too.
 
 Please note, that org-working-set adds an id-property to all nodes in
-the working-set.
+the working-set; but it does not move or change the nodes in any other
+way.
 
 The list of ids from the nodes of your working-set is stored within the
 property-drawer of a distinguished node specified via
-`org-working-set-id'; this can be any node you choose and is itself not
-part of the working-set.
+`org-working-set-id'; this node will also collect an ever-growing
+journal of nodes added to the working-set, which may serve as a
+reference later.
 
-Remark: Depending on your needs you might also find these packages
-interesting for providing somewhat similar functionality: org-now and
+Remark: Depending on your needs you might find these packages
+interesting too as they provide similar functionality: org-now and
 org-mru-clock.
 
-This is version 2.3.0 of org-working-set.el.
+Fictional User-Story:
 
-The subcommands allow to:
-- Modify the list of nodes (e.g. add new nodes)
+Assume, you come into the office in the morning and start your emacs
+with org-mode, because you keep all your notes in org. Yesterday
+evening you only worked within the org-node 'Feature Request';
+therefore your working-set only contains this node (which means: its
+id).
+
+So, you invoke the working-set menu (or even quicker, the circle) and
+jump to the node 'Feature Request' where you continue to work. Short
+after that, your Boss asks for an urgent status-report. You immediately
+stop work on 'Feature Request' and find your way to the neglected node
+'Status Report', The working set cannot help you to find this node
+initially, but then you add it for quicker access from now on. Your
+working set now contains two nodes.
+
+Next you attend your scrum-meeting, which means you open the node
+'Daily Scrum'. You add it to your working set, because you expect to
+make short excursions to other nodes and want to come back quickly.
+After the meeting you remove its node from your working set and
+continue to work on 'Status Report', which you find through your
+working-set quickly.
+
+When done with the report you have a look at your agenda, and realize
+that 'Organize Team-Event' is scheduled for today. So you decide to add
+it to your working-set (in case you get interrupted by a phone call)
+and start to work on this for an hour or so. The rest of the day passes
+like this with work, interruptions and task-switches.
+
+If this sounds like your typical work-day, you might indeed benefit
+from org-working-set.
+
+This is version 2.3.1 of org-working-set.el.
+
+
+`org-working-set' is the single entry-point; its subcommands allow to:
+
+- Modify the list of nodes (e.g. add nodes or remove others)
 - Circle quickly through the nodes
 - Show a menu buffer with all nodes currently in the working set
+
 "
   (interactive)
 
@@ -268,7 +354,8 @@ The subcommands allow to:
     (setq org-working-set--clock-in-curr org-working-set-clock-in)
     (setq org-working-set--land-at-end-curr org-working-set-land-at-end)
     
-    (unless org-working-set-id
+    (if (or (not org-working-set-id)
+            (string= org-working-set-id ""))
       (org-working-set--id-assistant))
     
     (org-working-set--nodes-from-property-if-unset-or-stale)
@@ -931,12 +1018,12 @@ Optional argument SKIP-RECENTER avoids recentering of buffer in window."
      "*org working-set assistant*"
      "\nThe required variable `org-working-set-id' has not been set. It should contain the id of an empty node, where org-working-set will store its runtime information. The property drawer will be used to store the ids of the working-set nodes, the body will be populated with an ever-growing list of nodes, that have been added."
      "\nThere are three ways to set `org-working-set-id':"
-     "- Choose a node and copy the value of its ID-property; use the customize-interface to set `org-working-set-id' to the chosen id."
-     "- As above, but edit your .emacs and insert a setq-clause."
-     (format "- Use the ID of the node the cursor is currently positioned in (which is '%s')." current-heading)
+     "- Choose a node and get and copy the value of its ID-property (via `org-id-get-create'); use the customize-interface to set `org-working-set-id' to the chosen id."
+     "- As above, but edit your .emacs and insert a setq-clause: (setq org-working-set-id \"XXX\"), where XXX is the id of your node. You might want to add a keybinding too, e.g. (global-set-key (kbd  \"C-c w\") 'org-working-set)"
+     (format "- Use the ID of the node the, where the cursor is currently positioned in (which is '%s')." current-heading)
      "\nIf you choose the first or second way, you should answer 'no' to the question below and go ahead yourself."
      "\nIf you choose the third way, you should answer 'yes'."
-     (format "\nHowever, if you are not already within the right node, you may answer 'no' to the question below, navigate to the right node and invoke `%s' again." this-command))
+     (format "\nHowever, if you are not already within the right node, you may answer 'no' to the question, navigate to the right node and invoke `%s' again." this-command))
     (unwind-protect
         (setq use-current-node (yes-or-no-p "Do you want to use the id of the current node ? "))
       (kill-buffer-and-window)
@@ -1047,7 +1134,7 @@ ID and TITLE specify heading to log"
 (provide 'org-working-set)
 
 ;; Local Variables:
-;; fill-column: 95
+;; fill-column: 75
 ;; comment-column: 50
 ;; End:
 
