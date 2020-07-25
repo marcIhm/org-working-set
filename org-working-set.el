@@ -152,6 +152,7 @@
 (require 'org)
 (require 'dash)
 (require 's)
+(require 'seq)
 
 
 ;;; customizable options
