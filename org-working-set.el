@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 2.3.1
+;; Version: 2.3.2
 ;; Package-Requires: ((org "9.2.6") (dash "2.12.0") (s "1.12.0") (emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -258,7 +258,7 @@
 (defconst org-working-set--menu-buffer-name "*working-set of org-nodes*" "Name of buffer with list of working-set nodes.")
 
 ;; Version of this package
-(defvar org-working-set-version "2.3.1" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-working-set-version "2.3.2" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 
 ;;; The central dispatch function
@@ -334,7 +334,8 @@ like this with work, interruptions and task-switches.
 If this sounds like your typical work-day, you might indeed benefit
 from org-working-set.
 
-This is version 2.3.1 of org-working-set.el.
+This is version 2.3.2 of org-working-set.el.
+
 
 
 `org-working-set' is the single entry-point; its subcommands allow to:
@@ -431,8 +432,8 @@ This is version 2.3.1 of org-working-set.el.
 
       ;; remove any parents of new node, that are already in working-set
       (setq ids-up-to-top (org-working-set--ids-up-to-top))
-      (when (seq-intersection ids-up-to-top org-working-set--ids)
-        (setq org-working-set--ids (seq-difference org-working-set--ids ids-up-to-top))
+      (when (-intersection ids-up-to-top org-working-set--ids)
+        (setq org-working-set--ids (-difference org-working-set--ids ids-up-to-top))
         (setq more-text (concat more-text ", replacing its parent")))
 
       ;; finally add new node to working-set
@@ -798,7 +799,7 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
       (cursor-intangible-mode)
       (erase-buffer)
       (insert (propertize (concat (if org-working-set--short-help-wanted
-                                      (org-working-set--wrap (cdr org-working-set--menu-help-strings))
+                                      (concat (org-working-set--wrap (cdr org-working-set--menu-help-strings)) ", * marks last visited")
                                     (car org-working-set--menu-help-strings))
                                   (org-working-set--switches-text))
                           'face 'org-agenda-dimmed-todo-face
