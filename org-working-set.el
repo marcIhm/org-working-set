@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 2.3.2
+;; Version: 2.3.3
 ;; Package-Requires: ((org "9.2.6") (dash "2.12.0") (s "1.12.0") (emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -184,7 +184,6 @@
 (defvar org-working-set--id-last-goto nil "Id of last node from working-set, that has been visited.")
 (defvar org-working-set--circle-before-marker nil "Marker for position before entry into circle.")
 (defvar org-working-set--circle-win-config nil "Window configuration before entry into circle.")
-(defvar org-working-set--last-message nil "Last message issued by working-set commands.")
 (defvar org-working-set--circle-cancel-transient-function nil "Function to end circle.")
 (defvar org-working-set--cancel-timer nil "Timer to cancel waiting for key.")
 (defvar org-working-set--overlay nil "Overlay to display name of current working-set node.")
@@ -258,7 +257,7 @@
 (defconst org-working-set--menu-buffer-name "*working-set of org-nodes*" "Name of buffer with list of working-set nodes.")
 
 ;; Version of this package
-(defvar org-working-set-version "2.3.2" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-working-set-version "2.3.3" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 
 ;;; The central dispatch function
@@ -334,7 +333,9 @@ like this with work, interruptions and task-switches.
 If this sounds like your typical work-day, you might indeed benefit
 from org-working-set.
 
-This is version 2.3.2 of org-working-set.el.
+This is version 2.3.3 of org-working-set.el.
+
+
 
 
 
@@ -365,13 +366,7 @@ This is version 2.3.2 of org-working-set.el.
       (setq def nil)
       (while (not def)
         (setq key (read-key-sequence
-                   (concat
-                    "org-working-set; type "
-                    (if org-working-set--short-help-wanted
-                        (cdr org-working-set--dispatch-help-strings)
-                      (car org-working-set--dispatch-help-strings))
-                    (org-working-set--switches-text)
-                    " - ")))
+                   (org-working-set--format-prompt "org-working-set; " org-working-set--dispatch-help-strings "%s - ")))
         (setq def (lookup-key org-working-set-dispatch-keymap key))
         (when (or (not def)
                 (numberp def))
@@ -541,28 +536,28 @@ Optional argument UPCASE modifies the returned message."
              (setq org-working-set--circle-before-marker nil)))))
 
   ;; first move
-  (org-working-set--circle-message (org-working-set--circle-continue t)))
+  (message (concat (org-working-set--circle-continue t) " - ")))
 
 
 (defun org-working-set--circle-forward ()
   "Move forward."
     (interactive)
   (setq this-command last-command)
-  (org-working-set--circle-message (org-working-set--circle-continue)))
+  (message (concat (org-working-set--circle-continue) " - ")))
 
 
 (defun org-working-set--circle-backward ()
   "Move backward."
   (interactive)
   (setq this-command last-command)
-  (org-working-set--circle-message (org-working-set--circle-continue nil t)))
+  (message (concat (org-working-set--circle-continue) " - ")))
 
 
 (defun org-working-set--circle-toggle-clock-in ()
   "Toggle clocking."
   (interactive)
   (setq org-working-set--clock-in-curr (not org-working-set--clock-in-curr))
-  (org-working-set--circle-message (org-working-set--circle-continue t)))
+  (message (concat (org-working-set--circle-continue t) " - ")))
 
 
 (defun org-working-set--circle-toggle-land-at-end ()
@@ -572,13 +567,13 @@ Optional argument UPCASE modifies the returned message."
   (if org-working-set--land-at-end-curr
       (org-working-set--put-tooltip-overlay)
     (org-working-set--remove-tooltip-overlay))
-  (org-working-set--circle-message (org-working-set--circle-continue t)))
+  (message (concat (org-working-set--circle-continue t) " - ")))
 
 
 (defun org-working-set--circle-done ()
   "Finish regularly."
     (interactive)
-    (org-working-set--circle-message "Circle done." t)
+    (message "Circle done.")
     (org-working-set--remove-tooltip-overlay))
 
 
@@ -595,8 +590,9 @@ Optional argument UPCASE modifies the returned message."
   (interactive)
   (setq this-command last-command)
   (org-working-set--nodes-persist)
-  (org-working-set--circle-message (concat (org-working-set--delete-from) " "
-                                    (org-working-set--circle-continue))))
+  (message (concat (org-working-set--delete-from) " "
+                   (org-working-set--circle-continue)
+                   " - ")))
 
 
 (defun org-working-set--circle-quit ()
@@ -647,33 +643,22 @@ Optional argument BACK"
         (org-working-set--put-tooltip-overlay))
 
     ;; Compose return message:
-    (concat
-     "In circle, "
-     ;; explanation
-     (format (cond (stay
-                    "returning to %slast")
-                   ((member target-id parent-ids)
-                    "staying below %scurrent")
-                   (t
-                    (concat "at %s" (if back "previous" "next"))))
-             (if org-working-set--land-at-end-curr "end of " ""))
-     ;; count of nodes
-     (if (cdr org-working-set--ids)
-         (format " node (%s); type " (org-working-set--out-of-clause target-id))
-       (format " single node; type "))
-     ;; help text
-     (if org-working-set--short-help-wanted
-         (cdr org-working-set--circle-help-strings)
-       (car org-working-set--circle-help-strings)))))
-
-
-(defun org-working-set--circle-message (message &optional plain)
-  "Issue given MESSAGE and append string '(again)' if appropriate."
-  (let ((again (if (string= message org-working-set--last-message) " (again)" "")))
-    (setq org-working-set--last-message message)
-    (if plain
-        (message message)
-      (message (concat message again (org-working-set--switches-text) " - ")))))
+    (org-working-set--format-prompt 
+     (concat
+      "In circle, "
+      ;; explanation
+      (format (cond (stay
+                     "returning to %slast")
+                    ((member target-id parent-ids)
+                     "staying below %scurrent")
+                    (t
+                     (concat "at %s" (if back "previous" "next"))))
+              (if org-working-set--land-at-end-curr "end of " ""))
+      ;; count of nodes
+      (if (cdr org-working-set--ids)
+          (format " node (%s); " (org-working-set--out-of-clause target-id))
+        (format " single node; ")))
+     org-working-set--circle-help-strings)))
 
 
 ;;; Functions for the working set menu
@@ -798,13 +783,11 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
       (setq prev-help-len (next-property-change (point-min)))
       (cursor-intangible-mode)
       (erase-buffer)
-      (insert (propertize (concat (if org-working-set--short-help-wanted
-                                      (concat (org-working-set--wrap (cdr org-working-set--menu-help-strings)) ", * marks last visited")
-                                    (car org-working-set--menu-help-strings))
-                                  (org-working-set--switches-text))
-                          'face 'org-agenda-dimmed-todo-face
-                          'cursor-intangible t
-                          'front-sticky t))
+      (insert (propertize
+               (org-working-set--format-prompt "" org-working-set--menu-help-strings ", * marks last visited%s")
+               'face 'org-agenda-dimmed-todo-face
+               'cursor-intangible t
+               'front-sticky t))
       (setq this-help-len (point))
       (insert "\n\n")
       (if go-top (setq cursor-here (point)))
@@ -851,12 +834,6 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
 
 
 ;;; General helper functions
-
-(defun org-working-set--switches-text ()
-  "Make text showing state of switches"
-  (format " [clock-in: %s, land-at: %s]"
-          (if org-working-set--clock-in-curr "yes" "no ")
-          (if org-working-set--land-at-end-curr "end " "head")))
 
 (defun org-working-set--goto-id (id)
   "Goto node with given ID and unfold."
@@ -965,12 +942,25 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
       (org-with-limited-levels (org-clock-in))))
 
 
-(defun org-working-set--wrap (text)
-     "Wrap TEXT at fill column."
-     (with-temp-buffer
-       (insert text)
-       (fill-region (point-min) (point-max) nil t)
-       (buffer-string)))
+(defun org-working-set--format-prompt (before short-and-long &optional after)
+  "Format prompt and help string."
+  (let (text)
+    (setq text (concat
+                before
+                "type "
+                (if org-working-set--short-help-wanted
+                    (cdr short-and-long)
+                  (car short-and-long))
+                (format (if after after "%s")
+                        (format " [clock-in: %s, land-at: %s]"
+                                (if org-working-set--clock-in-curr "yes" "no ")
+                                (if org-working-set--land-at-end-curr "end " "head")))))
+    (if org-working-set--short-help-wanted
+        (setq text (with-temp-buffer
+                     (insert text)
+                     (fill-region (point-min) (point-max) nil t)
+                     (buffer-string))))
+    text))
 
 
 (defun org-working-set--unfold-buffer (&optional skip-recenter)
