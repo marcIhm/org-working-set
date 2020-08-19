@@ -6,7 +6,7 @@
 
   Read below for a description.
 
-  The current version is 2.3.3.
+  The current version is 2.3.4.
 
 ** Table of Contents
 
@@ -23,13 +23,13 @@
     Manage a small subset of org-nodes to visit them with ease.
     
     On a busy day org-working-set allows to jump quickly between the nodes
-    associated with different tasks. It provides an answer to the question:
+    associated with different tasks.  It provides an answer to the question:
     What have I been doing before beeing interrupted in the middle of an
     interruption ?
     
     The working-set is a small set of nodes; you may add nodes (which
     means: their ids) to your working-set, if you want to visit them
-    frequently; the node visited last is called the current node. The
+    frequently; the node visited last is called the current node.  The
     working-set is volatile and expected to change each day or even hour.
     
     Once you have added nodes to your working set, there are two ways to
@@ -55,31 +55,31 @@
 
 *** Fictional User-Story
 
-    Assume, you come into the office in the morning and start your emacs
-    with org-mode, because you keep all your notes in org. Yesterday
+    Assume, you come into the office in the morning and start your Emacs
+    with org-mode, because you keep all your notes in org.  Yesterday
     evening you only worked within the org-node 'Feature Request';
     therefore your working-set only contains this node (which means: its
     id).
     
     So, you invoke the working-set menu (or even quicker, the circle) and
-    jump to the node 'Feature Request' where you continue to work. Short
-    after that, your Boss asks for an urgent status-report. You immediately
+    jump to the node 'Feature Request' where you continue to work.  Short
+    after that, your Boss asks for an urgent status-report.  You immediately
     stop work on 'Feature Request' and find your way to the neglected node
     'Status Report', The working set cannot help you to find this node
-    initially, but then you add it for quicker access from now on. Your
+    initially, but then you add it for quicker access from now on.  Your
     working set now contains two nodes.
     
     Next you attend your scrum-meeting, which means you open the node
-    'Daily Scrum'. You add it to your working set, because you expect to
+    'Daily Scrum'.  You add it to your working set, because you expect to
     make short excursions to other nodes and want to come back quickly.
     After the meeting you remove its node from your working set and
     continue to work on 'Status Report', which you find through your
     working-set quickly.
     
     When done with the report you have a look at your agenda, and realize
-    that 'Organize Team-Event' is scheduled for today. So you decide to add
+    that 'Organize Team-Event' is scheduled for today.  So you decide to add
     it to your working-set (in case you get interrupted by a phone call)
-    and start to work on this for an hour or so. The rest of the day passes
+    and start to work on this for an hour or so.  The rest of the day passes
     like this with work, interruptions and task-switches.
     
     If this sounds like your typical work-day, you might indeed benefit

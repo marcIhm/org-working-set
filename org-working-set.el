@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 2.3.3
+;; Version: 2.3.4
 ;; Package-Requires: ((org "9.2.6") (dash "2.12.0") (s "1.12.0") (emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -33,13 +33,13 @@
 ;;  Manage a small subset of org-nodes to visit them with ease.
 ;;
 ;;  On a busy day org-working-set allows to jump quickly between the nodes
-;;  associated with different tasks. It provides an answer to the question:
+;;  associated with different tasks.  It provides an answer to the question:
 ;;  What have I been doing before beeing interrupted in the middle of an
 ;;  interruption ?
 ;;
 ;;  The working-set is a small set of nodes; you may add nodes (which
 ;;  means: their ids) to your working-set, if you want to visit them
-;;  frequently; the node visited last is called the current node. The
+;;  frequently; the node visited last is called the current node.  The
 ;;  working-set is volatile and expected to change each day or even hour.
 ;;
 ;;  Once you have added nodes to your working set, there are two ways to
@@ -66,31 +66,31 @@
 ;;
 ;; Fictional User-Story:
 ;;
-;;  Assume, you come into the office in the morning and start your emacs
-;;  with org-mode, because you keep all your notes in org. Yesterday
+;;  Assume, you come into the office in the morning and start your Emacs
+;;  with org-mode, because you keep all your notes in org.  Yesterday
 ;;  evening you only worked within the org-node 'Feature Request';
 ;;  therefore your working-set only contains this node (which means: its
 ;;  id).
 ;;
 ;;  So, you invoke the working-set menu (or even quicker, the circle) and
-;;  jump to the node 'Feature Request' where you continue to work. Short
-;;  after that, your Boss asks for an urgent status-report. You immediately
+;;  jump to the node 'Feature Request' where you continue to work.  Short
+;;  after that, your Boss asks for an urgent status-report.  You immediately
 ;;  stop work on 'Feature Request' and find your way to the neglected node
 ;;  'Status Report', The working set cannot help you to find this node
-;;  initially, but then you add it for quicker access from now on. Your
+;;  initially, but then you add it for quicker access from now on.  Your
 ;;  working set now contains two nodes.
 ;;
 ;;  Next you attend your scrum-meeting, which means you open the node
-;;  'Daily Scrum'. You add it to your working set, because you expect to
+;;  'Daily Scrum'.  You add it to your working set, because you expect to
 ;;  make short excursions to other nodes and want to come back quickly.
 ;;  After the meeting you remove its node from your working set and
 ;;  continue to work on 'Status Report', which you find through your
 ;;  working-set quickly.
 ;;
 ;;  When done with the report you have a look at your agenda, and realize
-;;  that 'Organize Team-Event' is scheduled for today. So you decide to add
+;;  that 'Organize Team-Event' is scheduled for today.  So you decide to add
 ;;  it to your working-set (in case you get interrupted by a phone call)
-;;  and start to work on this for an hour or so. The rest of the day passes
+;;  and start to work on this for an hour or so.  The rest of the day passes
 ;;  like this with work, interruptions and task-switches.
 ;;  
 ;;  If this sounds like your typical work-day, you might indeed benefit
@@ -189,8 +189,8 @@
 (defvar org-working-set--overlay nil "Overlay to display name of current working-set node.")
 (defvar org-working-set--short-help-wanted nil "Non-nil, if short help should be displayed in working-set menu.")
 (defvar org-working-set--id-not-found nil "Id of last node not found.")
-(defvar org-working-set--clock-in-curr nil "Current and effecive value of `org-working-set-clock-in'")
-(defvar org-working-set--land-at-end-curr nil "Current and effecive value of `org-working-set-land-at-end'")
+(defvar org-working-set--clock-in-curr nil "Current and effecive value of `org-working-set-clock-in'.")
+(defvar org-working-set--land-at-end-curr nil "Current and effecive value of `org-working-set-land-at-end'.")
 
 (defun org-working-set--define-keymap (keymap keylist)
   "Define Keys given by KEYLIST in KEYMAP."
@@ -225,6 +225,7 @@
        (("c") . org-working-set--circle-toggle-clock-in)
        (("l") . org-working-set--circle-toggle-land-at-end)
        (("RET" "q") . org-working-set--circle-done)
+       (("SPC") . org-working-set--circle-switch-to-menu)
        (("DEL") . org-working-set--circle-backward)
        (("?") . org-working-set--circle-toggle-help)
        (("d") . org-working-set--circle-delete-current)
@@ -257,7 +258,7 @@
 (defconst org-working-set--menu-buffer-name "*working-set of org-nodes*" "Name of buffer with list of working-set nodes.")
 
 ;; Version of this package
-(defvar org-working-set-version "2.3.3" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-working-set-version "2.3.4" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 
 ;;; The central dispatch function
@@ -271,13 +272,13 @@
   "Manage a small subset of org-nodes to visit them with ease.
 
 On a busy day org-working-set allows to jump quickly between the nodes
-associated with different tasks. It provides an answer to the question:
+associated with different tasks.  It provides an answer to the question:
 What have I been doing before beeing interrupted in the middle of an
 interruption ?
 
 The working-set is a small set of nodes; you may add nodes (which
 means: their ids) to your working-set, if you want to visit them
-frequently; the node visited last is called the current node. The
+frequently; the node visited last is called the current node.  The
 working-set is volatile and expected to change each day or even hour.
 
 Once you have added nodes to your working set, there are two ways to
@@ -303,37 +304,38 @@ org-mru-clock.
 
 Fictional User-Story:
 
-Assume, you come into the office in the morning and start your emacs
-with org-mode, because you keep all your notes in org. Yesterday
+Assume, you come into the office in the morning and start your Emacs
+with org-mode, because you keep all your notes in org.  Yesterday
 evening you only worked within the org-node 'Feature Request';
 therefore your working-set only contains this node (which means: its
 id).
 
 So, you invoke the working-set menu (or even quicker, the circle) and
-jump to the node 'Feature Request' where you continue to work. Short
-after that, your Boss asks for an urgent status-report. You immediately
+jump to the node 'Feature Request' where you continue to work.  Short
+after that, your Boss asks for an urgent status-report.  You immediately
 stop work on 'Feature Request' and find your way to the neglected node
 'Status Report', The working set cannot help you to find this node
-initially, but then you add it for quicker access from now on. Your
+initially, but then you add it for quicker access from now on.  Your
 working set now contains two nodes.
 
 Next you attend your scrum-meeting, which means you open the node
-'Daily Scrum'. You add it to your working set, because you expect to
+'Daily Scrum'.  You add it to your working set, because you expect to
 make short excursions to other nodes and want to come back quickly.
 After the meeting you remove its node from your working set and
 continue to work on 'Status Report', which you find through your
 working-set quickly.
 
 When done with the report you have a look at your agenda, and realize
-that 'Organize Team-Event' is scheduled for today. So you decide to add
+that 'Organize Team-Event' is scheduled for today.  So you decide to add
 it to your working-set (in case you get interrupted by a phone call)
-and start to work on this for an hour or so. The rest of the day passes
+and start to work on this for an hour or so.  The rest of the day passes
 like this with work, interruptions and task-switches.
 
 If this sounds like your typical work-day, you might indeed benefit
 from org-working-set.
 
-This is version 2.3.3 of org-working-set.el.
+This is version 2.3.4 of org-working-set.el.
+
 
 
 
@@ -343,9 +345,7 @@ This is version 2.3.3 of org-working-set.el.
 
 - Modify the list of nodes (e.g. add nodes or remove others)
 - Circle quickly through the nodes
-- Show a menu buffer with all nodes currently in the working set
-
-"
+- Show a menu buffer with all nodes currently in the working set"
   (interactive)
 
   (let (key def text more-text)
@@ -550,7 +550,7 @@ Optional argument UPCASE modifies the returned message."
   "Move backward."
   (interactive)
   (setq this-command last-command)
-  (message (concat (org-working-set--circle-continue) " - ")))
+  (message (concat (org-working-set--circle-continue nil t) " - ")))
 
 
 (defun org-working-set--circle-toggle-clock-in ()
@@ -568,6 +568,14 @@ Optional argument UPCASE modifies the returned message."
       (org-working-set--put-tooltip-overlay)
     (org-working-set--remove-tooltip-overlay))
   (message (concat (org-working-set--circle-continue t) " - ")))
+
+
+(defun org-working-set--circle-switch-to-menu ()
+  "Leave working set circle and enter menu."
+  (interactive)
+  (message "Switching to menu")
+  (org-working-set--remove-tooltip-overlay)
+  (run-with-timer 0 nil 'org-working-set--menu))
 
 
 (defun org-working-set--circle-done ()
@@ -643,7 +651,7 @@ Optional argument BACK"
         (org-working-set--put-tooltip-overlay))
 
     ;; Compose return message:
-    (org-working-set--format-prompt 
+    (org-working-set--format-prompt
      (concat
       "In circle, "
       ;; explanation
@@ -943,7 +951,8 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
 
 
 (defun org-working-set--format-prompt (before short-and-long &optional after)
-  "Format prompt and help string."
+  "Format prompt and help string.
+Argument SHORT-AND-LONG has two help strings, BEFORE and AFTER are added."
   (let (text)
     (setq text (concat
                 before
@@ -1048,9 +1057,9 @@ Optional argument SKIP-RECENTER avoids recentering of buffer in window."
     (setq long
           (mapconcat (lambda (group)
                        (concat
-                        (s-join "," 
+                        (s-join ","
                                 (-remove (lambda (x) (member x '("<tab>")))
-                                         (mapcar 
+                                         (mapcar
                                           (lambda (kcell) (single-key-description (cdr kcell)))
                                           (cdr group))))
                         ") "
