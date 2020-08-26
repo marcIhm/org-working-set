@@ -59,12 +59,14 @@
 ;;  journal of nodes added to the working-set, which may serve as a
 ;;  reference later.
 ;;
-;;  Remark: Depending on your needs you might find these packages
-;;  interesting too as they provide similar functionality: org-now and
-;;  org-mru-clock.
+;;
+;; Similar Packages:
+;;
+;;  Depending on your needs you might find these packages interesting too
+;;  as they provide similar functionality: org-now and org-mru-clock.
 ;;
 ;;
-;; Fictional User-Story:
+;; User-Story:
 ;;
 ;;  Assume, you come into the office in the morning and start your Emacs
 ;;  with org-mode, because you keep all your notes in org.  Yesterday
@@ -268,7 +270,7 @@
   ;; be overwritten with Commentary-section from beginning of this file.
   ;; Editing after version number is fine.
   ;;
-  ;; For Rake: Insert purpose here
+  ;; For Rake: Insert here
   "Manage a small subset of org-nodes to visit them with ease.
 
 On a busy day org-working-set allows to jump quickly between the nodes
@@ -298,11 +300,21 @@ property-drawer of a distinguished node specified via
 journal of nodes added to the working-set, which may serve as a
 reference later.
 
-Remark: Depending on your needs you might find these packages
-interesting too as they provide similar functionality: org-now and
+This is version 2.3.4 of org-working-set.el.
+
+`org-working-set' is the single entry-point; its subcommands allow to:
+
+- Modify the list of nodes (e.g. add nodes or remove others)
+- Circle quickly through the nodes
+- Show a menu buffer with all nodes currently in the working set
+
+Similar-Packages:
+
+Depending on your needs you might find these packages interesting
+too as they provide similar functionality: org-now and
 org-mru-clock.
 
-Fictional User-Story:
+User-Story:
 
 Assume, you come into the office in the morning and start your Emacs
 with org-mode, because you keep all your notes in org.  Yesterday
@@ -332,20 +344,7 @@ and start to work on this for an hour or so.  The rest of the day passes
 like this with work, interruptions and task-switches.
 
 If this sounds like your typical work-day, you might indeed benefit
-from org-working-set.
-
-This is version 2.3.4 of org-working-set.el.
-
-
-
-
-
-
-`org-working-set' is the single entry-point; its subcommands allow to:
-
-- Modify the list of nodes (e.g. add nodes or remove others)
-- Circle quickly through the nodes
-- Show a menu buffer with all nodes currently in the working set"
+from org-working-set."
   (interactive)
 
   (let (key def text more-text)
@@ -896,21 +895,21 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
 
 (defun org-working-set--nodes-from-property-if-unset-or-stale ()
   "Read working-set to property if conditions apply."
-    (if (or (not org-working-set--ids)
-            org-working-set--id-not-found)
-        (let ((bp (org-working-set--id-bp)))
-          (with-current-buffer (car bp)
-            (save-excursion
-              (goto-char (cdr bp))
-              (setq org-working-set--ids (split-string (or (org-entry-get nil "working-set-nodes") "")))
-              (when (member org-working-set--id-not-found org-working-set--ids)
-                (org-working-set--ask-and-handle-stale-id)))))
-      (setq org-working-set--id-not-found nil)))
+  (if (or (not org-working-set--ids)
+          org-working-set--id-not-found)
+      (let ((bp (org-working-set--id-bp)))
+        (with-current-buffer (car bp)
+          (save-excursion
+            (goto-char (cdr bp))
+            (setq org-working-set--ids (split-string (or (org-entry-get nil "working-set-nodes") "")))
+            (when (member org-working-set--id-not-found org-working-set--ids)
+              (org-working-set--ask-and-handle-stale-id)))))
+    (setq org-working-set--id-not-found nil)))
 
 
 (defun org-working-set--ask-and-handle-stale-id ()
   "Ask user about stale ID from working set and handle answer."
-  (let ((char-choices (list ?d ?u ?q))
+  (let ((char-choices (list ?d ?u ?o ?q))
         (window-config (current-window-configuration))
         char)
 
@@ -919,6 +918,7 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
      (format "ERROR: ID %s from working set cannot be found. Please specify how to proceed:\n" org-working-set--id-not-found)
      "  - d :: delete this ID from the working set"
      "  - u :: run `org-id-update-id-locations' to rescan your org-files"
+     "  - o :: multi-occur over all org files for this id"
      "  - q :: quit and do nothing"
      "\nIf unsure, try 'u' first and then 'd'."
      "In any case the current function will be aborted and you will need to start over.")
@@ -930,17 +930,24 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
 
     (cond
      ((eq char ?q)
+      (message "The missing id is %s" org-working-set--id-not-found)
       (keyboard-quit))
      ((eq char ?d)
       (setq org-working-set--ids-saved org-working-set--ids)
       (setq org-working-set--ids (delete org-working-set--id-not-found org-working-set--ids))
       (org-working-set--nodes-persist)
       (setq org-working-set--id-not-found nil)
+      (setq  org-working-set--ids nil)
       (error "Removed ID %s from working-set; please start over" org-working-set--id-not-found))
+     ((eq char ?o)
+      (multi-occur-in-matching-buffers "\\.org$" org-working-set--id-not-found)
+      (setq  org-working-set--ids nil)
+      (error "Multi-occur for ID %s; if it has been found twice, `u' might help; otherwise the referred node or its properties might have been deleted (consider `d')" org-working-set--id-not-found))
      ((eq char ?u)
       (message "Updating ID locations")
       (sit-for 1)
       (org-id-update-id-locations)
+      (setq  org-working-set--ids nil)
       (error "Searched all files for ID %s; please start over" org-working-set--id-not-found)))))
 
 

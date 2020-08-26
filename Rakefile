@@ -3,9 +3,21 @@
 require 'pp'
 require 'fileutils'
 include FileUtils
-
 require 'yaml'
+
 cnf = YAML::load(File.open('rake_config.yml'))
+$opts = {:verbose => verbose == true}
+$fuo = {:verbose => $opts[:verbose]}
+
+def banner text, size = 0
+  puts "\n"
+  print {0 => "\e[32m", 1 => "\e[33m", 2 => "\e[34m"}[size]
+  dash = {0 => "---", 1 => "======", 2 => "######"
+  puts dash * 12 if large
+  puts "#{dash}  #{text}"
+  puts dash * 12 if large
+  print "\e[0m"
+end
 
 def compare_semver one,two
   vers = [one, two].map do |x|
@@ -34,6 +46,41 @@ def accept fname,nname
   end
 end
 
+def maybe_copy_with_backup from,to
+  puts "Maybe Copy #{from} to #{to}" if $opts[:verbose]
+  [from, to].each do |f|
+    unless File.exist?(f)
+      puts "File #{f} does not exist" if $opts[:verbose]
+      return false
+    end
+  end
+  mtf = File.mtime(from)
+  mtt = File.mtime(to)
+  if mtt > mtf
+    puts "Will not overwrite newer file #{to}" if $opts[:verbose]
+    return false
+  end
+  system("diff -q #{from} #{to} >/dev/null 2>&1")
+  if $?.exitstatus == 0
+    puts "Will not copy, as the files do not differ" if $opts[:verbose]
+    return false
+  end
+  make_backup to
+  cp from,to,$fuo
+  return true
+end
+
+def make_backup file
+  dir = File.dirname(file) + '/backup'
+  mkdir dir,$fuo unless File.directory?(dir)
+  backs = [ file ] + (1..5).map {|i| dir + '/' + File.basename(file) + "_backup_" + i.to_s}
+  pairs = backs[0..-2].zip(backs[1..-1]).reverse
+  pairs.each do |p|
+    next unless File.exist?(p[0])
+    cp p[0],p[1],$fuo
+  end
+end
+
 desc 'Describe building process'
 task :h do
   within = false
@@ -43,40 +90,54 @@ task :h do
   end
 end
 
-desc 'Copy info-pieces to various destinations'
-task :copy_info_pieces do
+desc 'Compare with rakefile in other dir and update'
+task :update_rake do
+  this_rf = __FILE__
+  parent_rf = File.expand_path('..', File.dirname(this_rf)) + '/rakefile-for-elisp/Rakefile'
+  system("touch -t 190001010000 #{parent_rf} >/dev/null 2>&1") unless File.exist?(parent_rf)
+  maybe_copy_with_backup this_rf, parent_rf
+  if maybe_copy_with_backup parent_rf, this_rf
+    puts "This rakefile has been updated; please rerun"
+    exit
+  end
+end
 
+desc 'Collect pieces of commentary'
+task :collect => [:update_rake] do
   fname = cnf['elisp_source']
-  puts "\nCollect info pieces from #{fname}:"
+  banner "Collect info pieces from #{fname}",2
+  banner "Collect info pieces from #{fname}",1
+  banner "Collect info pieces from #{fname}",0
+  exit
   commentary = Hash.new {""}
   change_log = Hash.new {""}
   version = nil
+  ckeys = ['Purpose', 'Similar Packages', 'User-Story', 'Setup']
+  ckmatcher = Regexp.new("^;; (" + ckeys.join("|") + "):\s*$")
   File.open(fname) do |file|
     line = ""
     puts "  Find version"
-    until line.start_with?(";;; Commentary:")
-      line = file.gets
-      mdata = line.match(/^;; Version: (\d+\.\d+\.\d+)\s*/)
-      version ||= mdata[1] if mdata
+    until (line = file.gets).start_with?(";;; Commentary:")
+      version = Regexp.last_match[1] if line.match(/^;; Version: (\d+\.\d+\.\d+)\s*/)
     end
     file.gets
     key = nil
     puts "  Pieces of Commentary"
     while (line = file.gets).start_with?(";;")
-      mdata = line.match(/^;; (\S.*):\s*$/)
-      if mdata
-        key = mdata[1]
+      if line.match(ckmatcher)
+        key = Regexp.last_match[1]
+        commentary[key] = Array.new
       else
-        line.sub!(/^;;  /,'')
-        line.sub!(/^;; *$/,'')
-        commentary[key] += line if key
+        line.sub!(/^;;(  )?/,'')
+        commentary[key] << line if key
       end
     end
     commentary.each_key do |key|
-      commentary[key].sub!(/\A(\s*\n)+/,'')
-      commentary[key].sub!(/(\s*\n)+\Z/,'')
+      commentary[key].pop while commentary[key][-1].match(/^\s*$/)
+      commentary[key].shift while commentary[key][0].match(/^\s*$/)
+      commentary[key] = commentary[key].join
+      pp commentary if $opts[:verbose]
     end
-    fail "Invalid set of keys #{commentary.keys} not #{cnf['valid_keys']}" unless commentary.keys.eql?(cnf['valid_keys'])
     puts "  Latest Change Log"
     vkey = nil
     line = file.gets until line.start_with?(";;; Change Log:")
@@ -91,9 +152,12 @@ task :copy_info_pieces do
       change_log[vkey] += line[3..-1]
     end
   end
+end
 
+desc 'Distribute collected information into various files'
+task :distribute => [:collect] do
   nname = fname + ".new"
-  puts "\n\n\e[33mPut info pieces into #{nname}:\e[0m"
+  banner "Distribute collected information into #{nname}", true
   seen = Hash.new
   seen[:version] = seen[:purpose] = false
   seen[:changelog] = false if cnf['copy_changelog']
@@ -243,6 +307,6 @@ task :copy_info_pieces do
 
 end
 
-task :default => [:copy_info_pieces] do
+task :default => [:distribute] do
 end
 
