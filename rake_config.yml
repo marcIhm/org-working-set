@@ -1,3 +1,14 @@
-elisp_source: org-working-set.el
-package_name: org-working-set
-copy_changelog: false
+source: org-working-set.el
+package: org-working-set
+required_pieces_commentary:
+  - Purpose
+  - Similar Packages
+  - Setup
+  - User-Story
+pieces_for_docstring:
+  - Purpose
+  - Similar Packages
+  - User-Story  
+# Maybe override this in rake_config_no_git.yml
+rake_be_symlink: false
+

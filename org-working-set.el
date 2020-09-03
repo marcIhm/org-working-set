@@ -109,45 +109,44 @@
 
 ;;; Change Log:
 
-;;   Version 2.3
+;;  Version 2.3
 ;;
-;;   - Renamed 'log of working-set nodes' into 'journal'
-;;   - Create org-working-set-dispatch-keymap for easier customization
-;;   - Reorganized keys (but you may change it if you like)
-;;   - In-prompt display of settings for clock-in and land-at
-;;   - Added a 'Fictional User-Story' to the documentation
+;;  - Renamed 'log of working-set nodes' into 'journal'
+;;  - Create org-working-set-dispatch-keymap for easier customization
+;;  - Reorganized keys (but you may change it if you like)
+;;  - In-prompt display of settings for clock-in and land-at
+;;  - Added a 'Fictional User-Story' to the documentation
 ;;
-;;   Version 2.2
+;;  Version 2.2
 ;;
-;;   - Moved org-id-cleanup to its own package
-;;   - Improved handling of missing ids in working set
-;;   - Refactoring
-;;   - Fixes
+;;  - Moved org-id-cleanup to its own package
+;;  - Improved handling of missing ids in working set
+;;  - Refactoring
+;;  - Fixes
 ;;
-;;   Version 2.1
+;;  Version 2.1
 ;;
-;;   - Added org-id-cleanup to clean up unreferenced IDs without attachments
+;;  - Added org-id-cleanup to clean up unreferenced IDs without attachments
 ;;
-;;   Version 2.0
+;;  Version 2.0
 ;;
-;;   - Added a log of working set nodes
-;;   - The node designated by org-working-set-id will be used to store this log
-;;   - Simplified handling of clocking
-;;   - Retired property working-set-nodes-do-not-clock
-;;   - Renamed custom-variable org-working-set-clock-into-working-set into
-;;     org-working-set-clock-in
-;;   - Renamed org-working-set-show-working-set-overlay into
-;;     org-working-set-show-overlay
-;;   - Renamed org-working-set-goto-bottom-in-working-set into
-;;     org-working-set-goto-bottom
+;;  - Added a log of working set nodes
+;;  - The node designated by org-working-set-id will be used to store this log
+;;  - Simplified handling of clocking
+;;  - Retired property working-set-nodes-do-not-clock
+;;  - Renamed custom-variable org-working-set-clock-into-working-set into
+;;    org-working-set-clock-in
+;;  - Renamed org-working-set-show-working-set-overlay into
+;;    org-working-set-show-overlay
+;;  - Renamed org-working-set-goto-bottom-in-working-set into
+;;    org-working-set-goto-bottom
 ;;
-;;   Version 1.1
+;;  Version 1.1
 ;;
-;;   - Moved functions for working set into its own file
-;;   - Show breadcrumbs in working-set-menu
-;;   - Prepare for melpa
+;;  - Moved functions for working set into its own file
+;;  - Show breadcrumbs in working-set-menu
+;;  - Prepare for melpa
 ;;
-;;  See the package org-index for older news
 
 ;;; Code:
 
@@ -300,14 +299,6 @@ property-drawer of a distinguished node specified via
 journal of nodes added to the working-set, which may serve as a
 reference later.
 
-This is version 2.3.4 of org-working-set.el.
-
-`org-working-set' is the single entry-point; its subcommands allow to:
-
-- Modify the list of nodes (e.g. add nodes or remove others)
-- Circle quickly through the nodes
-- Show a menu buffer with all nodes currently in the working set
-
 Similar-Packages:
 
 Depending on your needs you might find these packages interesting
@@ -344,7 +335,15 @@ and start to work on this for an hour or so.  The rest of the day passes
 like this with work, interruptions and task-switches.
 
 If this sounds like your typical work-day, you might indeed benefit
-from org-working-set."
+from org-working-set.
+
+This is version 2.3.4 of org-working-set.el.
+
+`org-working-set' is the single entry-point; its subcommands allow to:
+
+- Modify the list of nodes (e.g. add nodes or remove others)
+- Circle quickly through the nodes
+- Show a menu buffer with all nodes currently in the working set"
   (interactive)
 
   (let (key def text more-text)
