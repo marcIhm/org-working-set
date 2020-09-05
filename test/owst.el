@@ -134,7 +134,7 @@
     (owst-goto "eins")
     (owst-do "a")
     (should (= (length org-working-set--ids) 2))
-    (owst-do "m d q")
+    (owst-do "SPC d q")
     (should (= (length org-working-set--ids) 1))))
 
 

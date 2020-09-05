@@ -116,6 +116,7 @@
 ;;  - Reorganized keys (but you may change it if you like)
 ;;  - In-prompt display of settings for clock-in and land-at
 ;;  - Added a 'Fictional User-Story' to the documentation
+;;  - Running tests under unix
 ;;
 ;;  Version 2.2
 ;;
@@ -299,11 +300,10 @@ property-drawer of a distinguished node specified via
 journal of nodes added to the working-set, which may serve as a
 reference later.
 
-Similar-Packages:
+Similar Packages:
 
-Depending on your needs you might find these packages interesting
-too as they provide similar functionality: org-now and
-org-mru-clock.
+Depending on your needs you might find these packages interesting too
+as they provide similar functionality: org-now and org-mru-clock.
 
 User-Story:
 

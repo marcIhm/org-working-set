@@ -48,12 +48,13 @@
     `org-working-set-id'; this node will also collect an ever-growing
     journal of nodes added to the working-set, which may serve as a
     reference later.
-    
-    Remark: Depending on your needs you might find these packages
-    interesting too as they provide similar functionality: org-now and
-    org-mru-clock.
 
-*** Fictional User-Story
+*** Similar Packages
+
+    Depending on your needs you might find these packages interesting too
+    as they provide similar functionality: org-now and org-mru-clock.
+
+*** User-Story
 
     Assume, you come into the office in the morning and start your Emacs
     with org-mode, because you keep all your notes in org.  Yesterday
@@ -149,18 +150,19 @@
     - Reorganized keys (but you may change it if you like)
     - In-prompt display of settings for clock-in and land-at
     - Added a 'Fictional User-Story' to the documentation
-  
+    - Running tests under unix
+
 *** 2.2
 
     - Moved org-id-cleanup to its own package
     - Improved handling of missing ids in working set
     - Refactoring
     - Fixes
-  
+
 *** 2.1
 
     - Added org-id-cleanup to clean up unreferenced IDs without attachments
-  
+
 *** 2.0
 
     - Added a log of working set nodes
@@ -173,11 +175,10 @@
       org-working-set-show-overlay
     - Renamed org-working-set-goto-bottom-in-working-set into
       org-working-set-goto-bottom
-  
+
 *** 1.1
 
     - Moved functions for working set into its own file
     - Show breadcrumbs in working-set-menu
     - Prepare for melpa
-  
 

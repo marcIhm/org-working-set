@@ -8,7 +8,8 @@ required_pieces_commentary:
 pieces_for_docstring:
   - Purpose
   - Similar Packages
-  - User-Story  
+  - User-Story
+testfile: owst.el
 # Maybe override this in rake_config_no_git.yml
 rake_be_symlink: false
 
