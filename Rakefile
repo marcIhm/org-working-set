@@ -7,6 +7,8 @@
 #
 # and vice versa.
 #
+# Configure via rake_config.yml
+#
 
 require 'fileutils'
 include FileUtils
@@ -21,7 +23,7 @@ require 'open3'
 $conf = YAML::load(File.open('rake_config.yml'))
 $conf.transform_keys!(&:to_sym)
 $conf[:file] = 'rake_config.yml'
-$verbose = (verbose == true)
+$v = (verbose == true)
 
 # Shared information between tasks
 # from lisp-source
@@ -44,7 +46,7 @@ def heading text, large = false, warn = false
     puts "#{dash}  #{text}"
     puts dash * 12
   else
-    puts if $verbose
+    puts if $v
     print "\e[#{warn ? 35 : 33}m"
     puts "--- #{text}"
   end
@@ -79,35 +81,24 @@ end
 
 def make_backup file
   dir = File.dirname(file) + '/backup'
-  mkdir dir,{:verbose => $verbose} unless File.directory?(dir)
+  mkdir dir,{:verbose => $v} unless File.directory?(dir)
   backs = [ file ] + (1..5).map {|i| dir + '/' + File.basename(file) + "_backup_" + i.to_s}
   pairs = backs[0..-2].zip(backs[1..-1]).reverse
   pairs.each do |p|
     next unless File.exist?(p[0])
-    cp p[0],p[1],{:verbose => $verbose}
+    cp p[0],p[1],{:verbose => $v}
   end
 end
 
 
 def maybe_copy from,to
-  puts "Maybe copy #{from} to #{to}" if $verbose
-  [from, to].each do |f|
-    unless File.exist?(f)
-      puts "will not copy as #{f} does not exist" if $verbose
-      return false
-    end
-  end
-  if File.mtime(to) > File.mtime(from)
-    puts "#{to} is newer than #{from}" if $verbose
-    return false
-  end
+  puts "Maybe copy #{from} to #{to}" if $v
+  [from, to].each {|f| return false unless File.exist?(f)}
+  return false if File.mtime(to) > File.mtime(from)
   system("diff -q #{from} #{to} >/dev/null 2>&1")
-  if $?.exitstatus == 0
-    puts "No diff" if $verbose
-    return false
-  end
+  return false if $?.exitstatus == 0
   make_backup to
-  cp from,to,{:verbose => $verbose}
+  cp from,to,{:verbose => $v}
   return true
 end
 
@@ -127,7 +118,7 @@ def write_as_org file, level, hash, &compare
     hash[key].lines.each {|l| file.puts ' ' * (level+1) + l}
     file.puts "\n"
   end
-  pp hash if $verbose
+  pp hash if $v
 end
 
 
@@ -202,7 +193,7 @@ task :extract_commentary => [:update_rake] do
   $commentary_lisp.each_key do |key|
     brushup $commentary_lisp[key]
   end
-  pp $commentary_lisp if $verbose
+  pp $commentary_lisp if $v
 
   pieces_seen = Set.new($commentary_lisp.keys)
   pieces_required = Set.new($conf[:required_pieces_commentary])
@@ -233,7 +224,7 @@ task :extract_changelog_lisp => [:extract_version] do
     brushup $changelog_lisp[version]
   end
 
-  pp $changelog_lisp if $verbose
+  pp $changelog_lisp if $v
   
   version_lisp_latest = $changelog_lisp.keys.max {|a,b| compare_semver(a,b)}
   abort "Mismatch in #{$conf[:source]}: Latest version from Changelog #{version_lisp_latest} does not fit version specified explicitly #{$version_lisp}" unless $version_lisp.sub(/\.\d+$/,'') == version_lisp_latest
@@ -271,7 +262,7 @@ task :extract_changelog => [:extract_changelog_lisp] do
   $changelog.each_key do |version|
     brushup $changelog[version]
   end
-  pp $changelog if $verbose
+  pp $changelog if $v
   
 end
 
@@ -460,7 +451,7 @@ task :test do
         heading line
       elsif line.lstrip.start_with?('FAILED')
         heading line,false,true
-      elsif $verbose
+      elsif $v
         puts line
       end
     end
