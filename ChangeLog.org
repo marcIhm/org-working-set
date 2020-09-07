@@ -1,4 +1,4 @@
-* 2.3 until 2020-09-05 Sa
+* 2.3 until 2020-09-07 Mo
 
   - Renamed 'log of working-set nodes' into 'journal'
   - Create org-working-set-dispatch-keymap for easier customization

@@ -1,10 +1,8 @@
-org-working-set.elc
+*.elc
+*.new
 \#*#
 .#*
 *~
-org-working-set.el.backup
-ChangeLog.org.backup
-README.org.backup
 elpa
 org-id-locations-for-test
 owst-ert-work.org
