@@ -10,7 +10,3 @@ pieces_for_docstring:
   - Similar Packages
   - User-Story
 testfile: owst.el
-
-# Maybe override this in rake_config_no_git.yml
-rake_be_symlink: false
-
