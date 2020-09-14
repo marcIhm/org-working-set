@@ -200,6 +200,7 @@
 
 (defun owst-setup-test ()
   (interactive)
+  (message (format "Executing test %S" (ert-test-name (ert--stats-current-test ert--current-run-stats))))
   ;; remove any left over buffers
   (owst-remove-work-buffers)
   ;; create them new
