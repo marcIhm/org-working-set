@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 2.3.4
+;; Version: 2.4.0
 ;; Package-Requires: ((org "9.3") (dash "2.12") (s "1.12") (emacs "26.3"))
 
 ;; This file is not part of GNU Emacs.
@@ -109,6 +109,11 @@
 
 ;;; Change Log:
 
+;;  Version 2.4
+;;
+;;  - todo-state can be changed from working set menu
+;;  - working set is kept in least-recently-used order
+;;
 ;;  Version 2.3
 ;;
 ;;  - Renamed 'log of working-set nodes' into 'journal'
@@ -243,6 +248,7 @@
        (("TAB" "<tab>") . org-working-set-menu-go--other-win)
        (("p") . org-working-set--menu-peek)
        (("d") . org-working-set--menu-delete-entry)
+       (("t") . org-working-set--menu-todo)
        (("u") . org-working-set--menu-undo)
        (("q") . org-working-set--menu-quit)
        (("c") . org-working-set--menu-toggle-clock-in)
@@ -260,7 +266,7 @@
 (defconst org-working-set--menu-buffer-name "*working-set of org-nodes*" "Name of buffer with list of working-set nodes.")
 
 ;; Version of this package
-(defvar org-working-set-version "2.3.4" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-working-set-version "2.4.0" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 
 ;;; The central dispatch function
@@ -337,7 +343,7 @@ like this with work, interruptions and task-switches.
 If this sounds like your typical work-day, you might indeed benefit
 from org-working-set.
 
-This is version 2.3.4 of org-working-set.el.
+This is version 2.4.0 of org-working-set.el.
 
 `org-working-set' is the single entry-point; its subcommands allow to:
 
@@ -399,11 +405,13 @@ This is version 2.3.4 of org-working-set.el.
 (defun org-working-set--add ()
   "Add current node to working-set."
   (let ((more-text "")
-        (id (org-id-get-create))
-        name ids-up-to-top)
+        name id ids-up-to-top)
 
-    (org-with-limited-levels
-     (setq name (org-get-heading t t t t)))
+    (unless (string-equal major-mode "org-mode")
+      (error "This is not an org-buffer"))
+
+    (setq id (org-id-get-create))
+    (setq name (org-with-limited-levels (org-get-heading t t t t)))
 
     (unless (member id org-working-set--ids)
       (setq org-working-set--ids-saved org-working-set--ids)
@@ -698,8 +706,12 @@ Optional argument BACK"
 (defun org-working-set-menu-go (other-win)
   "Go to node specified by line under cursor.
 The Boolean arguments OTHER-WIN goes to node in other window."
-  (let (id)
-    (setq id (org-working-set--menu-get-id))
+  (let ((id (org-working-set--menu-get-id)))
+
+    ;; put id in front of list
+    (setq org-working-set--ids (cons id (delete id org-working-set--ids))) 
+    (org-working-set--nodes-persist)
+
     (if other-win
         (progn
           (other-window 1)
@@ -730,6 +742,16 @@ The Boolean arguments OTHER-WIN goes to node in other window."
   (interactive)
   (message (org-working-set--delete-from (org-working-set--menu-get-id)))
   (org-working-set--nodes-persist)
+  (org-working-set--menu-rebuild))
+
+
+(defun org-working-set--menu-todo ()
+  "Set todo state for node under cursor."
+  (interactive)
+  (save-window-excursion
+    (org-id-goto (org-working-set--menu-get-id))
+    (recenter 1)
+    (org-todo))
   (org-working-set--menu-rebuild))
 
 
@@ -910,13 +932,14 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
   "Ask user about stale ID from working set and handle answer."
   (let ((char-choices (list ?d ?u ?o ?q))
         (window-config (current-window-configuration))
+        (idnf org-working-set--id-not-found)
         char)
 
     (org-working-set--show-explanation
      "*ID not found*"
      (format "ERROR: ID %s from working set cannot be found. Please specify how to proceed:\n" org-working-set--id-not-found)
      "  - d :: delete this ID from the working set"
-     "  - u :: run `org-id-update-id-locations' to rescan your org-files"
+     "  - u :: save all org buffers, then run `org-id-update-id-locations' to rescan your org-files"
      "  - o :: multi-occur over all org files for this id"
      "  - q :: quit and do nothing"
      "\nIf unsure, try 'u' first and then 'd'."
@@ -936,8 +959,8 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
       (setq org-working-set--ids (delete org-working-set--id-not-found org-working-set--ids))
       (org-working-set--nodes-persist)
       (setq org-working-set--id-not-found nil)
-      (setq  org-working-set--ids nil)
-      (error "Removed ID %s from working-set; please start over" org-working-set--id-not-found))
+      (setq org-working-set--ids nil)
+      (error "Removed ID %s from working-set; please start over" idnf))
      ((eq char ?o)
       (multi-occur-in-matching-buffers "\\.org$" org-working-set--id-not-found)
       (setq  org-working-set--ids nil)
@@ -945,6 +968,7 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
      ((eq char ?u)
       (message "Updating ID locations")
       (sit-for 1)
+      (org-save-all-org-buffers)
       (org-id-update-id-locations)
       (setq  org-working-set--ids nil)
       (error "Searched all files for ID %s; please start over" org-working-set--id-not-found)))))

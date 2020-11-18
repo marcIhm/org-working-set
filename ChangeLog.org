@@ -1,3 +1,8 @@
+* 2.4 until 2020-11-18 We
+
+  - todo-state can be changed from working set menu
+  - working set is kept in least-recently-used order
+
 * 2.3 until 2020-09-14 Mo
 
   - Renamed 'log of working-set nodes' into 'journal'
