@@ -6,7 +6,7 @@
 
   Read below for a description.
 
-  The current version is 2.4.0.
+  The current version is 2.4.3.
 
 ** Table of Contents
 
@@ -134,10 +134,12 @@
     - Update Version number in org-working-set.el
     - Update Change Log in org-working-set.el
     - Check and update Commentary in org-working-set.el
-    - Run rake to copy those pieces of information into 
-      README.org and ChangeLog.org
+    - Run rake to:
+      - copy those pieces of information into README.org and
+        ChangeLog.org
+      - run tests
     - git add/commit as appropriate 
-    - $v=x.y.z ; git tag -a -m $v $v ; git push ; git push --tags
+    - v=x.y.z ; git tag -a -m $v $v ; git push ; git push --tags
 
 ** Latest Change Log
 
@@ -147,6 +149,7 @@
 
     - todo-state can be changed from working set menu
     - working set is kept in least-recently-used order
+    - Wrapping org-id-find and org-id-goto more often
 
 *** 2.3
 

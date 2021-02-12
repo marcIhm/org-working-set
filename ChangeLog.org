@@ -1,7 +1,8 @@
-* 2.4 until 2020-11-18 We
+* 2.4 until 2021-02-12 Fr
 
   - todo-state can be changed from working set menu
   - working set is kept in least-recently-used order
+  - Wrapping org-id-find and org-id-goto more often
 
 * 2.3 until 2020-09-14 Mo
 

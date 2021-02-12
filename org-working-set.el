@@ -1,10 +1,10 @@
 ;;; org-working-set.el --- Manage and visit a small set of org-nodes.  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2019-2020 Free Software Foundation, Inc.
+;; Copyright (C) 2019-2021 Free Software Foundation, Inc.
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 2.4.0
+;; Version: 2.4.3
 ;; Package-Requires: ((org "9.3") (dash "2.12") (s "1.12") (emacs "26.3"))
 
 ;; This file is not part of GNU Emacs.
@@ -113,6 +113,7 @@
 ;;
 ;;  - todo-state can be changed from working set menu
 ;;  - working set is kept in least-recently-used order
+;;  - Wrapping org-id-find and org-id-goto more often
 ;;
 ;;  Version 2.3
 ;;
@@ -266,7 +267,7 @@
 (defconst org-working-set--menu-buffer-name "*working-set of org-nodes*" "Name of buffer with list of working-set nodes.")
 
 ;; Version of this package
-(defvar org-working-set-version "2.4.0" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-working-set-version "2.4.3" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 
 ;;; The central dispatch function
@@ -343,7 +344,7 @@ like this with work, interruptions and task-switches.
 If this sounds like your typical work-day, you might indeed benefit
 from org-working-set.
 
-This is version 2.4.0 of org-working-set.el.
+This is version 2.4.3 of org-working-set.el.
 
 `org-working-set' is the single entry-point; its subcommands allow to:
 
@@ -405,14 +406,17 @@ This is version 2.4.0 of org-working-set.el.
 (defun org-working-set--add ()
   "Add current node to working-set."
   (let ((more-text "")
-        name id ids-up-to-top)
+        title id ids-up-to-top)
 
     (unless (string-equal major-mode "org-mode")
       (error "This is not an org-buffer"))
 
     (setq id (org-id-get-create))
-    (setq name (org-with-limited-levels (org-get-heading t t t t)))
-
+    (setq title (org-format-outline-path
+                 (cons (org-with-limited-levels (org-get-heading t t t t))
+                       (reverse (org-get-outline-path)))
+                 most-positive-fixnum nil " / "))
+    
     (unless (member id org-working-set--ids)
       (setq org-working-set--ids-saved org-working-set--ids)
 
@@ -422,7 +426,7 @@ This is version 2.4.0 of org-working-set.el.
             (delete nil (mapcar (lambda (wid)
                                   (if (member id
                                               ;; compute all parents of working set node id wid
-                                              (org-with-point-at (org-id-find wid t)
+                                              (org-with-point-at (org-working-set--id-find wid t)
                                                 (org-working-set--ids-up-to-top)))
                                       ;; if new node is parent of a node already in working set
                                       (progn
@@ -439,7 +443,7 @@ This is version 2.4.0 of org-working-set.el.
 
       ;; finally add new node to working-set
       (setq org-working-set--ids (cons id org-working-set--ids))
-      (org-working-set--log-add id name))
+      (org-working-set--journal-add id title))
 
     (setq org-working-set--id-last-goto id)
     (org-working-set--clock-in-maybe)
@@ -823,13 +827,7 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
           (mapc (lambda (id)
                   (let (heads olpath)
                     (save-window-excursion
-                      (setq org-working-set--id-not-found id)
-                      ;; org-id-goto may call org-id-update-id-locations, which tends to take long
-                      ;; so we advice it and ask the user if it is worthwhile
-                      (unwind-protect
-                          (progn (advice-add 'org-id-update-id-locations :around #'org-working-set--advice-for-org-id-update-id-locations)
-                                 (org-id-goto id))
-                        (advice-remove 'org-id-update-id-locations #'org-working-set--advice-for-org-id-update-id-locations))
+                      (org-working-set--id-goto id)
 
                       (setq olpath (org-format-outline-path
                                     (reverse (org-get-outline-path)) most-positive-fixnum nil " / "))
@@ -847,7 +845,6 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
       (if (or go-top (not prev-help-len))
           (goto-char cursor-here)
         (goto-char (+ cursor-here (- this-help-len prev-help-len))))
-      (setq org-working-set--id-not-found nil)
       (when resize
         (ignore-errors
           (fit-window-to-buffer (get-buffer-window))
@@ -863,16 +860,34 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
 
 ;;; General helper functions
 
-(defun org-working-set--goto-id (id)
-  "Goto node with given ID and unfold."
-  (let (marker)
+(defun org-working-set--id-find (id &optional markerp)
+  "Wrapper for org-id-find, that does not go stale during rebuild of org-id-locations"
+  (let (retval)
     (setq org-working-set--id-not-found id)
     (unwind-protect
         (progn
           (advice-add 'org-id-update-id-locations :around #'org-working-set--advice-for-org-id-update-id-locations)
-          (setq marker (org-id-find id 'marker)))
+          (setq retval (org-id-find id markerp)))
       (advice-remove 'org-id-update-id-locations #'org-working-set--advice-for-org-id-update-id-locations))
     (setq org-working-set--id-not-found nil)
+    retval))
+
+
+(defun org-working-set--id-goto (id)
+  "Wrapper for org-id-goto, that does not go stale during rebuild of org-id-locations"
+  (setq org-working-set--id-not-found id)
+  (unwind-protect
+      (progn
+        (advice-add 'org-id-update-id-locations :around #'org-working-set--advice-for-org-id-update-id-locations)
+        (org-id-goto id))
+    (advice-remove 'org-id-update-id-locations #'org-working-set--advice-for-org-id-update-id-locations))
+  (setq org-working-set--id-not-found nil))
+
+
+(defun org-working-set--goto-id (id)
+  "Goto node with given ID and unfold."
+  (let (marker)
+    (setq marker (org-working-set--id-find id 'marker))
     (unless marker
       (setq org-working-set--id-last-goto nil)
       (error "Could not find working-set node with id %s" id))
@@ -1011,9 +1026,9 @@ Optional argument SKIP-RECENTER avoids recentering of buffer in window."
 
 
 (defun org-working-set--id-bp ()
-  "Return buffer of working-set node."
+  "Return buffer and point of working-set node."
   (let (fp)
-    (setq fp (org-id-find org-working-set-id))
+    (setq fp (org-working-set--id-find org-working-set-id))
     (unless fp (error "Could not find node %s" org-working-set-id))
     (cons (get-file-buffer (car fp))
           (cdr fp))))
@@ -1113,7 +1128,7 @@ Optional argument SKIP-RECENTER avoids recentering of buffer in window."
       ids)))
 
 
-(defun org-working-set--log-add (id title)
+(defun org-working-set--journal-add (id title)
   "Add entry into log of working-set nodes.
 ID and TITLE specify heading to log"
   (let ((bp (org-working-set--id-bp)))
