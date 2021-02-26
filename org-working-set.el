@@ -13,7 +13,6 @@
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-
 ;; the Free Software Foundation; either version 3, or (at your option)
 ;; any later version.
 ;;
@@ -831,7 +830,7 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
 
                       (setq olpath (org-format-outline-path
                                     (reverse (org-get-outline-path)) most-positive-fixnum nil " / "))
-                      (setq heads (concat (substring-no-properties (org-get-heading))
+                      (setq heads (concat (substring-no-properties (or (org-get-heading) "?"))
                                           (if (> (length olpath) 0)
                                               (propertize (concat " / " olpath)
                                                           'face 'org-agenda-dimmed-todo-face)
