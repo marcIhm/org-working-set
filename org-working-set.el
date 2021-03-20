@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 2.4.3
+;; Version: 2.4.4
 ;; Package-Requires: ((org "9.3") (dash "2.12") (s "1.12") (emacs "26.3"))
 
 ;; This file is not part of GNU Emacs.
@@ -266,7 +266,7 @@
 (defconst org-working-set--menu-buffer-name "*working-set of org-nodes*" "Name of buffer with list of working-set nodes.")
 
 ;; Version of this package
-(defvar org-working-set-version "2.4.3" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-working-set-version "2.4.4" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 
 ;;; The central dispatch function
@@ -343,7 +343,7 @@ like this with work, interruptions and task-switches.
 If this sounds like your typical work-day, you might indeed benefit
 from org-working-set.
 
-This is version 2.4.3 of org-working-set.el.
+This is version 2.4.4 of org-working-set.el.
 
 `org-working-set' is the single entry-point; its subcommands allow to:
 
@@ -405,7 +405,7 @@ This is version 2.4.3 of org-working-set.el.
 (defun org-working-set--add ()
   "Add current node to working-set."
   (let ((more-text "")
-        title id ids-up-to-top)
+        title id ids-up-to-top was-already)
 
     (unless (string-equal major-mode "org-mode")
       (error "This is not an org-buffer"))
@@ -416,7 +416,8 @@ This is version 2.4.3 of org-working-set.el.
                        (reverse (org-get-outline-path)))
                  most-positive-fixnum nil " / "))
     
-    (unless (member id org-working-set--ids)
+    (if (member id org-working-set--ids)
+        (setq was-already t)
       (setq org-working-set--ids-saved org-working-set--ids)
 
       ;; before adding, remove any children of new node, that are already in working-set
@@ -447,7 +448,9 @@ This is version 2.4.3 of org-working-set.el.
     (setq org-working-set--id-last-goto id)
     (org-working-set--clock-in-maybe)
     (cons
-     "current node has been appended to working-set%s (%d node%s)"
+     (if was-already
+         "current is already part of working-set%s (%d node%s)"
+       "current node has been appended to working-set%s (%d node%s)")
      more-text)))
 
 
@@ -827,7 +830,6 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
                   (let (heads olpath)
                     (save-window-excursion
                       (org-working-set--id-goto id)
-
                       (setq olpath (org-format-outline-path
                                     (reverse (org-get-outline-path)) most-positive-fixnum nil " / "))
                       (setq heads (concat (substring-no-properties (or (org-get-heading) "?"))
@@ -879,24 +881,32 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
       (progn
         (advice-add 'org-id-update-id-locations :around #'org-working-set--advice-for-org-id-update-id-locations)
         (org-id-goto id))
-    (advice-remove 'org-id-update-id-locations #'org-working-set--advice-for-org-id-update-id-locations))
+    (advice-remove 'org-id-update-id-locations #'org-working-set--advice-for-org-id-update-id-locations)
+    (org-working-set--check-id id))
   (setq org-working-set--id-not-found nil))
 
 
 (defun org-working-set--goto-id (id)
-  "Goto node with given ID and unfold."
+  "Goto node with given ID and unfold"
   (let (marker)
     (setq marker (org-working-set--id-find id 'marker))
     (unless marker
       (setq org-working-set--id-last-goto nil)
       (error "Could not find working-set node with id %s" id))
-    
     (pop-to-buffer-same-window (marker-buffer marker))
     (goto-char (marker-position marker))
     (org-working-set--unfold-buffer)
     (move-marker marker nil)
+    (org-working-set--check-id id)
     (when org-working-set--land-at-end-curr
       (org-working-set--end-of-node))))
+
+
+(defun org-working-set--check-id (id)
+  "Check, if we really arrived there"
+  (if (not (string= id (org-id-get)))
+      (error "Node with id '%s' was found, but 'goto' did not suceed%s" id
+             (if (buffer-narrowed-p) (format " (maybe because buffer %s is narrowed)" (buffer-name)) ""))))
 
 
 (defun org-working-set--end-of-node ()
@@ -1005,7 +1015,7 @@ Argument SHORT-AND-LONG has two help strings, BEFORE and AFTER are added."
                     (cdr short-and-long)
                   (car short-and-long))
                 (format (if after after "%s")
-                        (format " [clock-in: %s, land-at: %s]"
+                        (format " [c.lock-in: %s, l.and-at: %s]"
                                 (if org-working-set--clock-in-curr "yes" "no ")
                                 (if org-working-set--land-at-end-curr "end " "head")))))
     (if org-working-set--short-help-wanted
