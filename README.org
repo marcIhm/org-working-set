@@ -6,7 +6,7 @@
 
   Read below for a description.
 
-  The current version is 2.4.4.
+  The current version is 2.5.0.
 
 ** Table of Contents
 
@@ -144,6 +144,11 @@
 ** Latest Change Log
 
    See ChangeLog.org for older entries.
+
+*** 2.5
+
+    - Allow inline tasks in working set
+    - `kill' as a synonym for `delete'
 
 *** 2.4
 

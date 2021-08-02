@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 2.4.4
+;; Version: 2.5.0
 ;; Package-Requires: ((org "9.3") (dash "2.12") (s "1.12") (emacs "26.3"))
 
 ;; This file is not part of GNU Emacs.
@@ -108,6 +108,17 @@
 
 ;;; Change Log:
 
+;;  Version 2.6
+;;
+;;  - Allow to add missing files to org-id-files, if an id cannot be found
+;;  - In circle add commands to terminate on-head / at-end
+;;
+;;  Version 2.5
+;;
+;;  - Allow inline tasks in working set
+;;  - `kill' as a synonym for `delete'
+;;  - Use org-mark-ring
+;;
 ;;  Version 2.4
 ;;
 ;;  - todo-state can be changed from working set menu
@@ -157,6 +168,7 @@
 ;;; Code:
 
 (require 'org)
+(require 'org-inlinetask)
 (require 'dash)
 (require 's)
 
@@ -212,7 +224,9 @@
      keymap
      '((("s") . org-working-set--set)
        (("a") . org-working-set--add)
+       (("A") . org-working-set--add-without-remove)
        (("d") . org-working-set--delete-from)
+       (("k") . org-working-set--delete-from)
        (("SPC") . org-working-set--menu)
        (("TAB" "<tab>") . org-working-set--circle-start)
        (("?") . org-working-set--dispatch-toggle-help)
@@ -234,8 +248,11 @@
        (("RET" "q") . org-working-set--circle-done)
        (("SPC") . org-working-set--circle-switch-to-menu)
        (("DEL") . org-working-set--circle-backward)
+       (("h") . org-working-set--circle-done-at-heading)
+       (("e") . org-working-set--circle-done-at-end)
        (("?") . org-working-set--circle-toggle-help)
        (("d") . org-working-set--circle-delete-current)
+       (("k") . org-working-set--circle-delete-current)
        (("C-g" "q") . org-working-set--circle-quit))))
   "Keymap used in working set circle.")
 
@@ -248,6 +265,7 @@
        (("TAB" "<tab>") . org-working-set-menu-go--other-win)
        (("p") . org-working-set--menu-peek)
        (("d") . org-working-set--menu-delete-entry)
+       (("k") . org-working-set--menu-delete-entry)
        (("t") . org-working-set--menu-todo)
        (("u") . org-working-set--menu-undo)
        (("q") . org-working-set--menu-quit)
@@ -266,7 +284,7 @@
 (defconst org-working-set--menu-buffer-name "*working-set of org-nodes*" "Name of buffer with list of working-set nodes.")
 
 ;; Version of this package
-(defvar org-working-set-version "2.4.4" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-working-set-version "2.5.0" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 
 ;;; The central dispatch function
@@ -343,7 +361,7 @@ like this with work, interruptions and task-switches.
 If this sounds like your typical work-day, you might indeed benefit
 from org-working-set.
 
-This is version 2.4.4 of org-working-set.el.
+This is version 2.5.0 of org-working-set.el.
 
 `org-working-set' is the single entry-point; its subcommands allow to:
 
@@ -401,19 +419,24 @@ This is version 2.4.4 of org-working-set.el.
     (org-working-set--clock-in-maybe)
     "working-set has been set to current node (1 node)"))
 
+(defun org-working-set--add-without-remove ()
+  "As normal add but without removing parent or children already in working-set."
+  (org-working-set--add t))
 
-(defun org-working-set--add ()
+(defun org-working-set--add (&optional without-remove)
   "Add current node to working-set."
   (let ((more-text "")
-        title id ids-up-to-top was-already)
+        title id ids-up-to-top was-already head)
 
     (unless (string-equal major-mode "org-mode")
       (error "This is not an org-buffer"))
 
-    (setq id (org-id-get-create))
+    (if (org-inlinetask-in-task-p)
+        (setq id (org-id-get-create) head (org-get-heading t t t t))
+      (org-with-limited-levels
+       (setq id (org-id-get-create) head (org-get-heading t t t t))))
     (setq title (org-format-outline-path
-                 (cons (org-with-limited-levels (org-get-heading t t t t))
-                       (reverse (org-get-outline-path)))
+                 (cons head (reverse (org-get-outline-path)))
                  most-positive-fixnum nil " / "))
     
     (if (member id org-working-set--ids)
@@ -422,24 +445,25 @@ This is version 2.4.4 of org-working-set.el.
 
       ;; before adding, remove any children of new node, that are already in working-set
       ;; i.e. remove all nodes from working set that have the new node as any of their parents
-      (setq org-working-set--ids
-            (delete nil (mapcar (lambda (wid)
-                                  (if (member id
-                                              ;; compute all parents of working set node id wid
-                                              (org-with-point-at (org-working-set--id-find wid t)
-                                                (org-working-set--ids-up-to-top)))
-                                      ;; if new node is parent of a node already in working set
-                                      (progn
-                                        (setq more-text ", removing its children")
-                                        nil) ; do not keep this node from working set
-                                    wid)) ; keep it
-                                org-working-set--ids)))
+      (unless without-remove
+        (setq org-working-set--ids
+              (delete nil (mapcar (lambda (wid)
+                                    (if (member id
+                                                ;; compute all parents of working set node id wid
+                                                (org-with-point-at (org-working-set--id-find wid t)
+                                                  (org-working-set--ids-up-to-top)))
+                                        ;; if new node is parent of a node already in working set
+                                        (progn
+                                          (setq more-text ", removing its children")
+                                          nil) ; do not keep this node from working set
+                                      wid)) ; keep it
+                                  org-working-set--ids)))
 
-      ;; remove any parents of new node, that are already in working-set
-      (setq ids-up-to-top (org-working-set--ids-up-to-top))
-      (when (-intersection ids-up-to-top org-working-set--ids)
-        (setq org-working-set--ids (-difference org-working-set--ids ids-up-to-top))
-        (setq more-text (concat more-text ", replacing its parent")))
+        ;; remove any parents of new node, that are already in working-set
+        (setq ids-up-to-top (org-working-set--ids-up-to-top))
+        (when (-intersection ids-up-to-top org-working-set--ids)
+          (setq org-working-set--ids (-difference org-working-set--ids ids-up-to-top))
+          (setq more-text (concat more-text ", replacing its parent"))))
 
       ;; finally add new node to working-set
       (setq org-working-set--ids (cons id org-working-set--ids))
@@ -448,9 +472,11 @@ This is version 2.4.4 of org-working-set.el.
     (setq org-working-set--id-last-goto id)
     (org-working-set--clock-in-maybe)
     (cons
-     (if was-already
-         "current is already part of working-set%s (%d node%s)"
-       "current node has been appended to working-set%s (%d node%s)")
+     (concat
+      (if was-already
+          "current node is already part of working-set%s (%d node%s)"
+        "current node has been appended to working-set%s (%d node%s)")
+      (propertize (concat ": " head) 'face 'org-agenda-dimmed-todo-face))
      more-text)))
 
 
@@ -520,7 +546,7 @@ Optional argument UPCASE modifies the returned message."
 
 (defun org-working-set--circle-start ()
   "Go through working-set, one node after the other."
-  (unless org-working-set--ids (error "No nodes in working-set; need to add some first"))
+  (unless org-working-set--ids (error "No nodes in working-set; please add some first"))
 
   (unless org-working-set--circle-help-strings
     (setq org-working-set--circle-help-strings (org-working-set--make-help-strings org-working-set-circle-keymap)))
@@ -597,6 +623,23 @@ Optional argument UPCASE modifies the returned message."
     (org-working-set--remove-tooltip-overlay))
 
 
+(defun org-working-set--circle-done-at-heading ()
+  "Finish regularly and go back to heading."
+    (interactive)
+    (message "Circle done; at heading.")
+    (org-working-set--remove-tooltip-overlay)
+    (org-with-limited-levels
+     (org-back-to-heading)))
+
+
+(defun org-working-set--circle-done-at-end ()
+  "Finish regularly and go back to end."
+    (interactive)
+    (message "Circle done; at end.")
+    (org-working-set--remove-tooltip-overlay)
+    (org-working-set--end-of-node))
+
+
 (defun org-working-set--circle-toggle-help ()
   "Show help."
   (interactive)
@@ -618,7 +661,7 @@ Optional argument UPCASE modifies the returned message."
 (defun org-working-set--circle-quit ()
   "Leave circle and return to prior node."
   (interactive)
-  (if org-working-set--circle-before-marker ; proper cleanup of marker will happen in cancel-wait timer
+  (if org-working-set--circle-before-marker ; proper cleanup of marker will happen in cancel-transient function
     (org-goto-marker-or-bmk org-working-set--circle-before-marker))
   (when org-working-set--circle-win-config
     (set-window-configuration org-working-set--circle-win-config)
@@ -723,11 +766,8 @@ The Boolean arguments OTHER-WIN goes to node in other window."
           (other-window 1)
           (org-working-set--goto-id id))
       (if (> (count-windows) 1) (delete-window))
-      (org-working-set--goto-id id)
-      (recenter 1))
+      (org-working-set--goto-id id))
 
-    (if org-working-set--land-at-end-curr
-        (org-working-set--end-of-node))
     (setq org-working-set--id-last-goto id)
     (org-working-set--clock-in-maybe)))
 
@@ -739,7 +779,6 @@ The Boolean arguments OTHER-WIN goes to node in other window."
     (save-excursion
       (org-working-set--goto-id (org-working-set--menu-get-id))
       (delete-other-windows)
-      (recenter 1)
       (read-char "Peeking into node, any key to return." nil 10))))
 
 
@@ -796,11 +835,6 @@ The Boolean arguments OTHER-WIN goes to node in other window."
   (interactive)
   (setq org-working-set--land-at-end-curr (not org-working-set--land-at-end-curr))
   (org-working-set--menu-rebuild t))
-
-
-(defun org-working-set--advice-for-org-id-update-id-locations (_orig-func &rest _args)
-  "Advice that moderates use of `org-id-update-id-location' for `org-working-set--menu-rebuild'."
-  (org-working-set--ask-and-handle-stale-id))
 
 
 (defun org-working-set--menu-rebuild (&optional resize go-top)
@@ -861,6 +895,18 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
 
 ;;; General helper functions
 
+(defun org-working-set--insert-files (files)
+  "Insert given list of FILES into current buffer using full window width."
+  (let ((tab-stop-list '(2 42 82)))
+    (dolist (name files)
+      (if (> (+ (indent-next-tab-stop (current-column))
+                (length name))
+             (- (window-width) 10))
+          (insert "\n"))
+      (tab-to-tab-stop)
+      (insert name))))
+
+
 (defun org-working-set--id-find (id &optional markerp)
   "Wrapper for org-id-find, that does not go stale during rebuild of org-id-locations"
   (let (retval)
@@ -896,10 +942,15 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
     (pop-to-buffer-same-window (marker-buffer marker))
     (goto-char (marker-position marker))
     (org-working-set--unfold-buffer)
+    (org-mark-ring-push)
     (move-marker marker nil)
     (org-working-set--check-id id)
-    (when org-working-set--land-at-end-curr
-      (org-working-set--end-of-node))))
+    (if (and org-working-set--land-at-end-curr
+             (not (org-inlinetask-in-task-p)))
+        (progn
+          (org-working-set--end-of-node)
+          (recenter -1))
+      (recenter 1))))
 
 
 (defun org-working-set--check-id (id)
@@ -954,7 +1005,7 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
 
 (defun org-working-set--ask-and-handle-stale-id ()
   "Ask user about stale ID from working set and handle answer."
-  (let ((char-choices (list ?d ?u ?o ?q))
+  (let ((char-choices (list ?d ?u ?o ?q ?f))
         (window-config (current-window-configuration))
         (idnf org-working-set--id-not-found)
         char)
@@ -965,6 +1016,7 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
      "  - d :: delete this ID from the working set"
      "  - u :: save all org buffers, then run `org-id-update-id-locations' to rescan your org-files"
      "  - o :: multi-occur over all org files for this id"
+     "  - f :: view current list in org-id-files and maybe add another one"
      "  - q :: quit and do nothing"
      "\nIf unsure, try 'u' first and then 'd'."
      "In any case the current function will be aborted and you will need to start over.")
@@ -982,13 +1034,28 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
       (setq org-working-set--ids-saved org-working-set--ids)
       (setq org-working-set--ids (delete org-working-set--id-not-found org-working-set--ids))
       (org-working-set--nodes-persist)
-      (setq org-working-set--id-not-found nil)
-      (setq org-working-set--ids nil)
       (error "Removed ID %s from working-set; please start over" idnf))
      ((eq char ?o)
       (multi-occur-in-matching-buffers "\\.org$" org-working-set--id-not-found)
-      (setq  org-working-set--ids nil)
+      (pop-to-buffer-same-window "*Occur*")
+      (setq org-working-set--id-not-found nil)
       (error "Multi-occur for ID %s; if it has been found twice, `u' might help; otherwise the referred node or its properties might have been deleted (consider `d')" org-working-set--id-not-found))
+     ((eq char ?f)
+      (let ((buna "*content of org-id-files*")
+            file)
+        (with-current-buffer-window buna '((display-buffer-at-bottom)) nil
+          (insert (format "Current content of variable `org-id-files':\n\n"))
+          (org-working-set--insert-files org-id-files)
+          (insert "\n")
+          (ignore-errors
+            (fit-window-to-buffer (get-buffer-window buna))
+            (enlarge-window 1)))
+        (setq file (read-file-name "Choose a single files to add or hit C-g to cancel operation: " org-directory))
+        (if (and (file-readable-p file)
+                 (file-regular-p file))
+            (progn (push file org-id-files)
+                   (message "Added %s to `org-id-locations'" file))
+          (message "Specified name %s is not readable or not a file" file))))
      ((eq char ?u)
       (message "Updating ID locations")
       (sit-for 1)

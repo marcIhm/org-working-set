@@ -1,3 +1,8 @@
+* 2.5 until 2021-05-24 Mo
+
+  - Allow inline tasks in working set
+  - `kill' as a synonym for `delete'
+
 * 2.4 until 2021-03-20 Sa
 
   - todo-state can be changed from working set menu

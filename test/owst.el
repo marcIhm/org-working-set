@@ -1,11 +1,11 @@
 ;;; owst.el --- Regression Tests for org-working-set.el
 
-;; Copyright (C) 2019-2020 Free Software Foundation, Inc.
+;; Copyright (C) 2019-2021 Free Software Foundation, Inc.
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; Keywords: outlines, regression-tests, elisp
 ;; Requires: org, org-working-set
-;; Version: 0.0.1
+;; Version: 0.0.2
 
 ;; This file is not part of GNU Emacs.
 
@@ -117,6 +117,16 @@
     (should (looking-at ".* drei"))))
 
 
+(ert-deftest owst-test-working-set-add-and-find-inline ()
+  (owst-with-test-setup
+    (goto-char 0)
+    (search-forward "Inline")
+    (owst-do "a")
+    (goto-char 0)
+    (owst-do "SPC <return>")
+    (should (looking-at "\*+ Inline"))))
+
+
 (ert-deftest owst-test-working-set-menu-goto ()
   (owst-with-test-setup
     (owst-goto "zwei")
@@ -208,8 +218,6 @@
   (switch-to-buffer owst-work-buffer)
   (basic-save-buffer)
   (org-agenda-file-to-front owst-ert-work-file)
-  (owst-create-work-buffer)
-  (switch-to-buffer owst-work-buffer)
   (org-cycle '(64))
   (delete-other-windows)
   (end-of-buffer)
@@ -274,6 +282,11 @@
   :PROPERTIES:
   :ID:       87512329-a204-47e5-b38c-1b22838b6f7d
   :END:
+*************** Inline
+  :PROPERTIES:
+  :ID:       4939f218-d086-49c6-94f6-0f4046111b0f
+  :END:
+*************** END
 * drei
   :PROPERTIES:
   :ID:       b77473f3-dba0-4b4f-9db7-3ba095d12de4
