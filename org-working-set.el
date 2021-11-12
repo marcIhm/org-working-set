@@ -837,6 +837,11 @@ The Boolean arguments OTHER-WIN goes to node in other window."
   (org-working-set--menu-rebuild t))
 
 
+(defun org-working-set--advice-for-org-id-update-id-locations (_orig-func &rest _args)
+  "Advice that moderates use of `org-id-update-id-location' for `org-working-set--menu-rebuild'."
+  (org-working-set--ask-and-handle-stale-id))
+
+
 (defun org-working-set--menu-rebuild (&optional resize go-top)
   "Rebuild content of menu-buffer.
 Optional argument RESIZE adjusts window size.
@@ -955,9 +960,11 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
 
 (defun org-working-set--check-id (id)
   "Check, if we really arrived there"
-  (if (not (string= id (org-id-get)))
-      (error "Node with id '%s' was found, but 'goto' did not suceed%s" id
-             (if (buffer-narrowed-p) (format " (maybe because buffer %s is narrowed)" (buffer-name)) ""))))
+  (let ((maybe (if (buffer-narrowed-p) (format " (maybe because buffer %s is narrowed)" (buffer-name)) "")))
+    (unless (org-id-get)
+      (error "Did not arrive at node with id '%s'%s" id maybe))
+    (unless (string= id (org-id-get))
+      (error "Node with id '%s' was found, but 'goto' did not succeed%s" id maybe))))
 
 
 (defun org-working-set--end-of-node ()
