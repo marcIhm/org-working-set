@@ -1,10 +1,10 @@
 ;;; org-working-set.el --- Manage and visit a small set of org-nodes.  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2019-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2019-2022 Free Software Foundation, Inc.
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 2.5.0
+;; Version: 2.6.1
 ;; Package-Requires: ((org "9.3") (dash "2.12") (s "1.12") (emacs "26.3"))
 
 ;; This file is not part of GNU Emacs.
@@ -112,6 +112,7 @@
 ;;
 ;;  - Allow to add missing files to org-id-files, if an id cannot be found
 ;;  - In circle add commands to terminate on-head / at-end
+;;  - In Menu allow to go to node without starring it
 ;;
 ;;  Version 2.5
 ;;
@@ -261,7 +262,8 @@
     (set-keymap-parent keymap org-mode-map)
     (org-working-set--define-keymap
      keymap
-     '((("RET" "SPC") . org-working-set-menu-go--this-win)
+     '((("RET") . org-working-set-menu-go--this-win)
+       (("SPC") . org-working-set-menu-go--this-win-dont-set)
        (("TAB" "<tab>") . org-working-set-menu-go--other-win)
        (("p") . org-working-set--menu-peek)
        (("d") . org-working-set--menu-delete-entry)
@@ -388,7 +390,8 @@ This is version 2.5.0 of org-working-set.el.
       (setq def nil)
       (while (not def)
         (setq key (read-key-sequence
-                   (org-working-set--format-prompt "org-working-set; " org-working-set--dispatch-help-strings "%s - ")))
+                   (apply 'format
+                          (org-working-set--format-prompt "org-working-set; " org-working-set--dispatch-help-strings "%s - "))))
         (setq def (lookup-key org-working-set-dispatch-keymap key))
         (when (or (not def)
                 (numberp def))
@@ -706,22 +709,23 @@ Optional argument BACK"
         (org-working-set--put-tooltip-overlay))
 
     ;; Compose return message:
-    (org-working-set--format-prompt
-     (concat
-      "In circle, "
-      ;; explanation
-      (format (cond (stay
-                     "returning to %slast")
-                    ((member target-id parent-ids)
-                     "staying below %scurrent")
-                    (t
-                     (concat "at %s" (if back "previous" "next"))))
-              (if org-working-set--land-at-end-curr "end of " ""))
-      ;; count of nodes
-      (if (cdr org-working-set--ids)
-          (format " node (%s); " (org-working-set--out-of-clause target-id))
-        (format " single node; ")))
-     org-working-set--circle-help-strings)))
+    (apply 'format
+           (org-working-set--format-prompt
+            (concat
+             "In circle, "
+             ;; explanation
+             (format (cond (stay
+                            "returning to %slast")
+                           ((member target-id parent-ids)
+                            "staying below %scurrent")
+                           (t
+                            (concat "at %s" (if back "previous" "next"))))
+                     (if org-working-set--land-at-end-curr "end of " ""))
+             ;; count of nodes
+             (if (cdr org-working-set--ids)
+                 (format " node (%s); " (org-working-set--out-of-clause target-id))
+               (format " single node; ")))
+            org-working-set--circle-help-strings))))
 
 
 ;;; Functions for the working set menu
@@ -743,23 +747,25 @@ Optional argument BACK"
 (defun org-working-set-menu-go--this-win ()
   "Go to node specified by line under cursor in this window."
   (interactive)
-  (org-working-set-menu-go nil))
+  (org-working-set-menu-go nil t))
+
+
+(defun org-working-set-menu-go--this-win-dont-set ()
+  "Go to node specified by line under cursor in this window, but do not star."
+  (interactive)
+  (org-working-set-menu-go nil nil))
 
 
 (defun org-working-set-menu-go--other-win ()
   "Go to node specified by line under cursor in other window."
   (interactive)
-  (org-working-set-menu-go t))
+  (org-working-set-menu-go t t))
 
 
-(defun org-working-set-menu-go (other-win)
+(defun org-working-set-menu-go (other-win set-last-id)
   "Go to node specified by line under cursor.
 The Boolean arguments OTHER-WIN goes to node in other window."
   (let ((id (org-working-set--menu-get-id)))
-
-    ;; put id in front of list
-    (setq org-working-set--ids (cons id (delete id org-working-set--ids))) 
-    (org-working-set--nodes-persist)
 
     (if other-win
         (progn
@@ -768,8 +774,13 @@ The Boolean arguments OTHER-WIN goes to node in other window."
       (if (> (count-windows) 1) (delete-window))
       (org-working-set--goto-id id))
 
-    (setq org-working-set--id-last-goto id)
-    (org-working-set--clock-in-maybe)))
+    (when set-last-id
+      (setq org-working-set--id-last-goto id)
+      ;; put id in front of list
+      (setq org-working-set--ids (cons id (delete id org-working-set--ids)))) 
+
+    (org-working-set--clock-in-maybe)
+    (org-working-set--nodes-persist)))
 
 
 (defun org-working-set--menu-peek ()
@@ -847,7 +858,7 @@ The Boolean arguments OTHER-WIN goes to node in other window."
 Optional argument RESIZE adjusts window size.
 Optional argument GO-TOP goes to top of new window, rather than keeping current position."
   (interactive)
-  (let (cursor-here prev-help-len this-help-len lb)
+  (let (cursor-here prev-help-len this-help-len lb pparts)
     (org-working-set--nodes-from-property-if-unset-or-stale)
     (with-current-buffer (get-buffer-create org-working-set--menu-buffer-name)
       (set (make-local-variable 'line-move-visual) nil)
@@ -856,12 +867,17 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
       (setq prev-help-len (next-property-change (point-min)))
       (cursor-intangible-mode)
       (erase-buffer)
-      (insert (propertize
-               (org-working-set--format-prompt "" org-working-set--menu-help-strings ", * marks last visited%s")
-               'face 'org-agenda-dimmed-todo-face
-               'cursor-intangible t
-               'front-sticky t))
-      (setq this-help-len (point))
+      (setq pparts (org-working-set--format-prompt "" org-working-set--menu-help-strings ", * marks last visited%s"))
+      (insert
+       (apply 'format
+              (flatten-list
+               (list (propertize
+                      (car pparts)
+                      'face 'org-agenda-dimmed-todo-face
+                      'cursor-intangible t
+                      'front-sticky t)
+                     (mapcar (lambda (x) (propertize x 'face 'default)) (cdr pparts))))))
+      (setq this-help-len (next-property-change (point-min)))
       (insert "\n\n")
       (if go-top (setq cursor-here (point)))
       (if org-working-set--ids
@@ -1084,12 +1100,12 @@ Argument SHORT-AND-LONG has two help strings, BEFORE and AFTER are added."
   (let (text)
     (setq text (concat
                 before
-                "type "
+                "Type "
                 (if org-working-set--short-help-wanted
                     (cdr short-and-long)
                   (car short-and-long))
                 (format (if after after "%s")
-                        (format " [c.lock-in: %s, l.and-at: %s]"
+                        (format " [%%s.lock-in: %s, %%s.and-at: %s]"
                                 (if org-working-set--clock-in-curr "yes" "no ")
                                 (if org-working-set--land-at-end-curr "end " "head")))))
     (if org-working-set--short-help-wanted
@@ -1097,7 +1113,7 @@ Argument SHORT-AND-LONG has two help strings, BEFORE and AFTER are added."
                      (insert text)
                      (fill-region (point-min) (point-max) nil t)
                      (buffer-string))))
-    text))
+    (list text "c" "l")))
 
 
 (defun org-working-set--unfold-buffer (&optional skip-recenter)
