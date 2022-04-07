@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 2.6.1
+;; Version: 2.6.2
 ;; Package-Requires: ((org "9.3") (dash "2.12") (s "1.12") (emacs "26.3"))
 
 ;; This file is not part of GNU Emacs.
@@ -1006,10 +1006,10 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
 
 (defun org-working-set--nodes-persist ()
   "Write working-set to property."
-  (let ((bp (org-working-set--id-bp)))
-    (with-current-buffer (car bp)
-      (setq org-working-set--ids (cl-remove-duplicates org-working-set--ids :test (lambda (x y) (string= x y))))
-      (org-entry-put (cdr bp) "working-set-nodes" (mapconcat #'identity org-working-set--ids " ")))))
+  (setq org-working-set--ids (cl-remove-duplicates org-working-set--ids :test (lambda (x y) (string= x y))))
+  (let ((ws-bp (org-working-set--id-bp)))
+    (with-current-buffer (car ws-bp)
+      (org-entry-put (cdr ws-bp) "working-set-nodes" (mapconcat #'identity org-working-set--ids " ")))))
 
 
 (defun org-working-set--nodes-from-property-if-unset-or-stale ()
@@ -1126,9 +1126,8 @@ Optional argument SKIP-RECENTER avoids recentering of buffer in window."
 
 (defun org-working-set--id-bp ()
   "Return buffer and point of working-set node."
-  (let (fp)
-    (setq fp (org-working-set--id-find org-working-set-id))
-    (unless fp (error "Could not find node %s" org-working-set-id))
+  (let ((fp (org-working-set--id-find org-working-set-id)))
+    (unless fp (error "Could not find node %s with working set" org-working-set-id))
     (cons (get-file-buffer (car fp))
           (cdr fp))))
 
