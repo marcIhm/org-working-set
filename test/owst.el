@@ -190,6 +190,17 @@
     (should (= (length org-working-set--ids) 0))))
 
 
+(ert-deftest owst-test-advice-for-problems ()
+  (owst-with-test-setup
+    (owst-goto "vier")
+    (owst-do "a")
+    (org-delete-property "ID")
+    (ignore-errors
+      (owst-do "SPC o"))
+    (with-current-buffer "*Occur*"
+      (should (looking-at "2 matches")))))
+
+
 ;;
 ;; Helper functions
 ;;
@@ -221,7 +232,7 @@
   (org-cycle '(64))
   (delete-other-windows)
   (end-of-buffer)
-  (org-id-update-id-locations)
+  (org-id-update-id-locations (list owst-ert-work-file))
   (ignore-errors
     (kill-buffer org-working-set--menu-buffer-name))
   (setq org-working-set--ids nil)
@@ -276,7 +287,7 @@
 * eins
   :PROPERTIES:
   :ID:       53e15dce-6f28-4674-bd65-e63b516d97ac
-  :working-set-nodes: 
+  :working-set-nodes:
   :END:
 * zwei
   :PROPERTIES:

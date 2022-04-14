@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 2.6.2
+;; Version: 2.6.5
 ;; Package-Requires: ((org "9.3") (dash "2.12") (s "1.12") (emacs "26.3"))
 
 ;; This file is not part of GNU Emacs.
@@ -209,6 +209,7 @@
 (defvar org-working-set--overlay nil "Overlay to display name of current working-set node.")
 (defvar org-working-set--short-help-wanted nil "Non-nil, if short help should be displayed in working-set menu.")
 (defvar org-working-set--id-not-found nil "Id of last node not found.")
+(defvar org-working-set--disp-on-error nil "Buffer to display on error.")
 (defvar org-working-set--clock-in-curr nil "Current and effecive value of `org-working-set-clock-in'.")
 (defvar org-working-set--land-at-end-curr nil "Current and effecive value of `org-working-set-land-at-end'.")
 
@@ -372,49 +373,57 @@ This is version 2.5.0 of org-working-set.el.
 - Show a menu buffer with all nodes currently in the working set"
   (interactive)
 
-  (let (key def text more-text)
+  (unwind-protect
+      (let (key def text more-text)
 
-    (unless org-working-set--dispatch-help-strings
-      (setq org-working-set--dispatch-help-strings (org-working-set--make-help-strings org-working-set-dispatch-keymap)))
+        (unless org-working-set--dispatch-help-strings
+          (setq org-working-set--dispatch-help-strings (org-working-set--make-help-strings org-working-set-dispatch-keymap)))
 
-    (setq org-working-set--clock-in-curr org-working-set-clock-in)
-    (setq org-working-set--land-at-end-curr org-working-set-land-at-end)
-    
-    (if (or (not org-working-set-id)
-            (string= org-working-set-id ""))
-      (org-working-set--id-assistant))
-    
-    (org-working-set--nodes-from-property-if-unset-or-stale)
+        (setq org-working-set--clock-in-curr org-working-set-clock-in)
+        (setq org-working-set--land-at-end-curr org-working-set-land-at-end)
+        
+        (if (or (not org-working-set-id)
+                (string= org-working-set-id ""))
+            (org-working-set--id-assistant))
+        
+        (org-working-set--nodes-from-property-if-unset-or-stale)
 
-    (while (not text)
-      (setq def nil)
-      (while (not def)
-        (setq key (read-key-sequence
-                   (apply 'format
-                          (org-working-set--format-prompt "org-working-set; " org-working-set--dispatch-help-strings "%s - "))))
-        (setq def (lookup-key org-working-set-dispatch-keymap key))
-        (when (or (not def)
-                (numberp def))
-          (message "Invalid key: %s" key)
+        (while (not text)
           (setq def nil)
-          (sit-for 1)))
+          (while (not def)
+            (setq key (read-key-sequence
+                       (apply 'format
+                              (org-working-set--format-prompt "org-working-set; " org-working-set--dispatch-help-strings "%s - "))))
+            (setq def (lookup-key org-working-set-dispatch-keymap key))
+            (when (or (not def)
+                      (numberp def))
+              (message "Invalid key: %s" key)
+              (setq def nil)
+              (sit-for 1)))
 
-      (setq text (funcall def)))
+          (setq text (funcall def)))
 
-    (when (consp text)
-      (setq more-text (cdr text))
-      (setq text (car text)))
+        (when (consp text)
+          (setq more-text (cdr text))
+          (setq text (car text)))
 
-    (org-working-set--nodes-persist)
+        (org-working-set--nodes-persist)
 
-    (setq text (format text (or more-text "") (length org-working-set--ids) (if (cdr org-working-set--ids) "s" "")))
-    (message (concat (upcase (substring text 0 1)) (substring text 1)))))
+        (setq text (format text (or more-text "") (length org-working-set--ids) (if (cdr org-working-set--ids) "s" "")))
+        (message (concat (upcase (substring text 0 1)) (substring text 1))))
+
+    ;; display buffer on error
+    (when org-working-set--disp-on-error
+      (pop-to-buffer org-working-set--disp-on-error '((display-buffer-at-bottom)))
+      (setq org-working-set--disp-on-error nil))))
 
 
 ;;; Smaller functions directly available from dispatch; circle and menu see further down
 
 (defun org-working-set--set ()
   "Set working-set to current node."
+  (unless (string-equal major-mode "org-mode")
+    (error "This is not an org-buffer"))
   (let ((id (org-id-get-create)))
     (setq org-working-set--ids-saved org-working-set--ids)
     (setq org-working-set--ids (list id))
@@ -733,6 +742,8 @@ Optional argument BACK"
 (defun org-working-set--menu ()
   "Show menu to let user choose among and manipulate list of working-set nodes."
 
+  (unless org-working-set--ids (error "No nodes in working-set; please add some first"))
+  
   (unless org-working-set--menu-help-strings
     (setq org-working-set--menu-help-strings (org-working-set--make-help-strings org-working-set-menu-keymap)))
     
@@ -948,8 +959,8 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
       (progn
         (advice-add 'org-id-update-id-locations :around #'org-working-set--advice-for-org-id-update-id-locations)
         (org-id-goto id))
-    (advice-remove 'org-id-update-id-locations #'org-working-set--advice-for-org-id-update-id-locations)
-    (org-working-set--check-id id))
+    (advice-remove 'org-id-update-id-locations #'org-working-set--advice-for-org-id-update-id-locations))
+  (org-working-set--check-id id)
   (setq org-working-set--id-not-found nil))
 
 
@@ -1060,9 +1071,10 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
       (error "Removed ID %s from working-set; please start over" idnf))
      ((eq char ?o)
       (multi-occur-in-matching-buffers "\\.org$" org-working-set--id-not-found)
-      (pop-to-buffer-same-window "*Occur*")
-      (setq org-working-set--id-not-found nil)
-      (error "Multi-occur for ID %s; if it has been found twice, `u' might help; otherwise the referred node or its properties might have been deleted (consider `d')" org-working-set--id-not-found))
+      (setq org-working-set--disp-on-error "*Occur*")
+      (let ((owsinf org-working-set--id-not-found))
+        (setq org-working-set--id-not-found nil)
+        (error "Multi-occur for ID %s; if it has been found twice, `u' might help; otherwise the referred node or its properties might have been deleted (consider `d')" owsinf)))
      ((eq char ?f)
       (let ((buna "*content of org-id-files*")
             file)
@@ -1083,6 +1095,7 @@ Optional argument GO-TOP goes to top of new window, rather than keeping current 
       (message "Updating ID locations")
       (sit-for 1)
       (org-save-all-org-buffers)
+      (advice-remove 'org-id-update-id-locations #'org-working-set--advice-for-org-id-update-id-locations)
       (org-id-update-id-locations)
       (setq  org-working-set--ids nil)
       (error "Searched all files for ID %s; please start over" org-working-set--id-not-found)))))
