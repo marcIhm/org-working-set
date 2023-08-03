@@ -1,8 +1,8 @@
-;;; org-working-set.el --- Manage and visit a small set of org-nodes.  -*- lexical-binding: t; -*-
+;;; org-working-set.el --- Manage and visit a small and changing set of org-nodes that you work on -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2019-2022 Free Software Foundation, Inc.
 
-;; Author: Marc Ihm <1@2484.de>
+;; Author: Marc Ihm <marc@ihm.name>
 ;; URL: https://github.com/marcIhm/org-working-set
 ;; Version: 2.6.5
 ;; Package-Requires: ((org "9.3") (dash "2.12") (s "1.12") (emacs "26.3"))
