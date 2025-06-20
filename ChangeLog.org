@@ -1,7 +1,19 @@
+* 2.7 until 2025-06-20 Fr
+
+  - Store link to node from working set
+  - Journal entry also on delete
+
+* 2.6 until 2025-06-19 Th
+
+  - Allow to add missing files to org-id-files, if an id cannot be found
+  - In circle add commands to terminate on-head / at-end
+  - In Menu allow to go to node without starring it
+
 * 2.5 until 2021-05-24 Mo
 
   - Allow inline tasks in working set
   - `kill' as a synonym for `delete'
+  - Use org-mark-ring
 
 * 2.4 until 2021-03-20 Sa
 

@@ -1,11 +1,11 @@
-;;; org-working-set.el --- Manage and visit a small and changing set of org-nodes that you work on -*- lexical-binding: t; -*-
+;;; org-working-set.el --- Manage and visit a small and changing set of org-nodes that you work on -*- lexical-binding: t; byte-compile-warnings: (not docstrings) -*-
 
-;; Copyright (C) 2019-2022 Free Software Foundation, Inc.
+;; Copyright (C) 2019-2025 Free Software Foundation, Inc.
 
 ;; Author: Marc Ihm <marc@ihm.name>
 ;; URL: https://github.com/marcIhm/org-working-set
-;; Version: 2.6.5
-;; Package-Requires: ((org "9.3") (dash "2.12") (s "1.12") (emacs "26.3"))
+;; Version: 2.7.0
+;; Package-Requires: ((org "9.3") (dash "2.12") (s "1.12") (emacs "28.0"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -55,8 +55,8 @@
 ;;  The list of ids from the nodes of your working-set is stored within the
 ;;  property-drawer of a distinguished node specified via
 ;;  `org-working-set-id'; this node will also collect an ever-growing
-;;  journal of nodes added to the working-set, which may serve as a
-;;  reference later.
+;;  journal of nodes added to or removed from the working-set, which may
+;;  serve as a reference later.
 ;;
 ;;
 ;; Similar Packages:
@@ -108,6 +108,11 @@
 
 ;;; Change Log:
 
+;;  Version 2.7
+;;
+;;  - Store link to node from working set
+;;  - Journal entry also on delete
+;;
 ;;  Version 2.6
 ;;
 ;;  - Allow to add missing files to org-id-files, if an id cannot be found
@@ -169,6 +174,7 @@
 ;;; Code:
 
 (require 'org)
+(require 'org-id)
 (require 'org-inlinetask)
 (require 'dash)
 (require 's)
@@ -182,7 +188,10 @@
   :group 'org)
 
 (defcustom org-working-set-id nil
-  "Id of the org-node for the working-set; should be empty initially.  The property drawer will be used to store the ids of the working-set nodes, the body will be populated with an ever-growing list of nodes, that have been added."
+  "Id of the org-node for the working-set; should be empty initially.
+The property drawer will be used to store the ids of the working-set nodes,
+the body will be populated with an ever-growing list of nodes, that have
+been added."
   :group 'org-working-set
   :type 'string)
 
@@ -267,6 +276,7 @@
        (("SPC") . org-working-set-menu-go--this-win-dont-set)
        (("TAB" "<tab>") . org-working-set-menu-go--other-win)
        (("p") . org-working-set--menu-peek)
+       (("L") . org-working-set--menu-store-link)
        (("d") . org-working-set--menu-delete-entry)
        (("k") . org-working-set--menu-delete-entry)
        (("t") . org-working-set--menu-todo)
@@ -287,7 +297,7 @@
 (defconst org-working-set--menu-buffer-name "*working-set of org-nodes*" "Name of buffer with list of working-set nodes.")
 
 ;; Version of this package
-(defvar org-working-set-version "2.5.0" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-working-set-version "2.7.0" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 
 ;;; The central dispatch function
@@ -324,8 +334,8 @@ way.
 The list of ids from the nodes of your working-set is stored within the
 property-drawer of a distinguished node specified via
 `org-working-set-id'; this node will also collect an ever-growing
-journal of nodes added to the working-set, which may serve as a
-reference later.
+journal of nodes added to or removed from the working-set, which may
+serve as a reference later.
 
 Similar Packages:
 
@@ -364,7 +374,7 @@ like this with work, interruptions and task-switches.
 If this sounds like your typical work-day, you might indeed benefit
 from org-working-set.
 
-This is version 2.5.0 of org-working-set.el.
+This is version 2.7.0 of org-working-set.el.
 
 `org-working-set' is the single entry-point; its subcommands allow to:
 
@@ -381,6 +391,7 @@ This is version 2.5.0 of org-working-set.el.
 
         (setq org-working-set--clock-in-curr org-working-set-clock-in)
         (setq org-working-set--land-at-end-curr org-working-set-land-at-end)
+        (setq org-working-set--short-help-wanted nil)
         
         (if (or (not org-working-set-id)
                 (string= org-working-set-id ""))
@@ -438,7 +449,7 @@ This is version 2.5.0 of org-working-set.el.
 (defun org-working-set--add (&optional without-remove)
   "Add current node to working-set."
   (let ((more-text "")
-        title id ids-up-to-top was-already head)
+        heads id ids-up-to-top was-already head)
 
     (unless (string-equal major-mode "org-mode")
       (error "This is not an org-buffer"))
@@ -447,7 +458,7 @@ This is version 2.5.0 of org-working-set.el.
         (setq id (org-id-get-create) head (org-get-heading t t t t))
       (org-with-limited-levels
        (setq id (org-id-get-create) head (org-get-heading t t t t))))
-    (setq title (org-format-outline-path
+    (setq heads (org-format-outline-path
                  (cons head (reverse (org-get-outline-path)))
                  most-positive-fixnum nil " / "))
     
@@ -479,7 +490,7 @@ This is version 2.5.0 of org-working-set.el.
 
       ;; finally add new node to working-set
       (setq org-working-set--ids (cons id org-working-set--ids))
-      (org-working-set--journal-add id title))
+      (org-working-set--journal-add id heads))
 
     (setq org-working-set--id-last-goto id)
     (org-working-set--clock-in-maybe)
@@ -495,16 +506,25 @@ This is version 2.5.0 of org-working-set.el.
 (defun org-working-set--delete-from (&optional id)
   "Delete current node from working-set.
 Optional argument ID gives the node to delete."
-  (setq id (or id (org-id-get)))
-  (format
-   (if (and id (member id org-working-set--ids))
-       (progn
-         (if (string= id org-working-set--id-last-goto) (setq org-working-set--id-last-goto nil))
-         (setq org-working-set--ids-saved org-working-set--ids)
-         (setq org-working-set--ids (delete id org-working-set--ids))
-         "Current node has been removed from working-set (%d node%s)")
-     "Current node has not been in working-set (%d node%s)")
-   (length org-working-set--ids) (if org-working-set--ids "s" "")))
+  (let (head heads)
+    (setq id (or id (org-id-get)))
+    (format
+     (if (and id (member id org-working-set--ids))
+         (progn
+           (if (string= id org-working-set--id-last-goto) (setq org-working-set--id-last-goto nil))
+           ;; add to journal
+           (save-window-excursion
+             (org-working-set--id-goto id)
+             (setq head (org-get-heading t t t t))
+             (setq heads (org-format-outline-path
+                          (cons head (reverse (org-get-outline-path)))
+                          most-positive-fixnum nil " / ")))
+           (org-working-set--journal-add id heads t)
+           (setq org-working-set--ids-saved org-working-set--ids)
+           (setq org-working-set--ids (delete id org-working-set--ids))
+           "Current node has been removed from working-set (%d node%s)")
+       "Current node has not been in working-set (%d node%s)")
+     (length org-working-set--ids) (if org-working-set--ids "s" ""))))
 
 
 (defun org-working-set--journal-enter ()
@@ -756,25 +776,25 @@ Optional argument BACK"
 
 
 (defun org-working-set-menu-go--this-win ()
-  "Go to node specified by line under cursor in this window."
+  "Go to node in THIS window."
   (interactive)
   (org-working-set-menu-go nil t))
 
 
 (defun org-working-set-menu-go--this-win-dont-set ()
-  "Go to node specified by line under cursor in this window, but do not star."
+  "Go to node in THIS window, but do not star."
   (interactive)
   (org-working-set-menu-go nil nil))
 
 
 (defun org-working-set-menu-go--other-win ()
-  "Go to node specified by line under cursor in other window."
+  "Go to node in OTHER window."
   (interactive)
   (org-working-set-menu-go t t))
 
 
 (defun org-working-set-menu-go (other-win set-last-id)
-  "Go to node specified by line under cursor.
+  "Go to node.
 The Boolean arguments OTHER-WIN goes to node in other window."
   (let ((id (org-working-set--menu-get-id)))
 
@@ -795,7 +815,7 @@ The Boolean arguments OTHER-WIN goes to node in other window."
 
 
 (defun org-working-set--menu-peek ()
-  "Peek into node specified by line under cursor."
+  "Peek into node."
   (interactive)
   (save-window-excursion
     (save-excursion
@@ -804,8 +824,17 @@ The Boolean arguments OTHER-WIN goes to node in other window."
       (read-char "Peeking into node, any key to return." nil 10))))
 
 
+(defun org-working-set--menu-store-link ()
+  "Store link."
+  (interactive)
+  (save-window-excursion
+    (save-excursion
+      (org-working-set--goto-id (org-working-set--menu-get-id))
+      (org-store-link t t))))
+
+
 (defun org-working-set--menu-delete-entry ()
-  "Delete node under cursor from working set."
+  "Delete node from working set."
   (interactive)
   (message (org-working-set--delete-from (org-working-set--menu-get-id)))
   (org-working-set--nodes-persist)
@@ -813,7 +842,7 @@ The Boolean arguments OTHER-WIN goes to node in other window."
 
 
 (defun org-working-set--menu-todo ()
-  "Set todo state for node under cursor."
+  "Set todo state for node."
   (interactive)
   (save-window-excursion
     (org-id-goto (org-working-set--menu-get-id))
@@ -823,7 +852,7 @@ The Boolean arguments OTHER-WIN goes to node in other window."
 
 
 (defun org-working-set--menu-undo ()
-  "Undo last modification to working set."
+  "Undo last modification."
   (interactive)
   (message (org-working-set--nodes-restore))
   (org-working-set--nodes-persist)
@@ -865,7 +894,7 @@ The Boolean arguments OTHER-WIN goes to node in other window."
 
 
 (defun org-working-set--menu-rebuild (&optional resize go-top)
-  "Rebuild content of menu-buffer.
+  "Rebuild content.
 Optional argument RESIZE adjusts window size.
 Optional argument GO-TOP goes to top of new window, rather than keeping current position."
   (interactive)
@@ -1132,7 +1161,7 @@ Argument SHORT-AND-LONG has two help strings, BEFORE and AFTER are added."
 (defun org-working-set--unfold-buffer (&optional skip-recenter)
   "Helper function to unfold buffer.
 Optional argument SKIP-RECENTER avoids recentering of buffer in window."
-  (org-show-context 'tree)
+  (org-fold-show-context 'tree)
   (org-reveal '(16))
   (unless skip-recenter (recenter 1)))
 
@@ -1221,7 +1250,7 @@ Optional argument SKIP-RECENTER avoids recentering of buffer in window."
                         ") "
                         (s-chop-suffix "." (cl-first (s-lines (documentation (car group)))))))
                      grouped
-                     ",  "))
+                     ",   "))
     (cons short long)))
 
 
@@ -1239,9 +1268,9 @@ Optional argument SKIP-RECENTER avoids recentering of buffer in window."
       ids)))
 
 
-(defun org-working-set--journal-add (id title)
+(defun org-working-set--journal-add (id title &optional del)
   "Add entry into log of working-set nodes.
-ID and TITLE specify heading to log"
+ID and TITLE specify heading to log, DEL is true on delete from working set"
   (let ((bp (org-working-set--id-bp)))
     (with-current-buffer (car bp)
       (save-excursion
@@ -1254,7 +1283,7 @@ ID and TITLE specify heading to log"
 	(insert (make-string (1+ (org-current-level)) ? )
 		"- ")
         (org-insert-time-stamp nil t t)
-        (insert (format "    [[id:%s][%s]]\n" id title))))))
+        (insert (format "  %s [[id:%s][%s]]\n" (if del "DEL" "ADD") id title))))))
 
 
 (defun org-working-set--put-tooltip-overlay ()
@@ -1263,7 +1292,7 @@ ID and TITLE specify heading to log"
     (setq head (org-with-limited-levels (org-get-heading t t t t)))
     (when org-working-set--land-at-end-curr
       (if org-working-set--overlay (delete-overlay org-working-set--overlay))
-      (setq org-working-set--overlay (make-overlay (point-at-bol) (point-at-bol)))
+      (setq org-working-set--overlay (make-overlay (pos-bol) (pos-bol)))
       (overlay-put org-working-set--overlay
                    'after-string
                    (propertize
